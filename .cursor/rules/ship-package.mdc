@@ -1,0 +1,65 @@
+---
+description: After any Roobytes version bump or feature ship, must run ./ship.sh (or package-app.sh) so /Applications/Roobytes.app matches source.
+alwaysApply: true
+---
+
+# Ship / package harness
+
+About, Spotlight, and Raycast read **`/Applications/Roobytes.app`**, not the SPM debug binary. Source version bumps alone do **not** update what the user launches.
+
+## Preferred path — `./ship.sh`
+
+When the user asks to ship, release, bump version, commit + package, or you are finishing a user-facing change that needs a new install:
+
+```bash
+./ship.sh <patch|minor|major> -m "changelog bullet" [-m "another"]
+```
+
+What it does (in order):
+
+1. Bumps `CFBundleShortVersionString` + `CFBundleVersion` in [`Resources/Info.plist`](Resources/Info.plist)
+2. Inserts `## x.y.z` into [`CHANGELOG.md`](CHANGELOG.md); updates About fallbacks in `AppDelegate`
+3. Runs `./test.sh` (pass `--skip-tests` for docs/rules-only)
+4. `git add -A` + Conventional Commit (pass `--no-commit` to skip): subject is `feat:` / `fix:` / `feat!:` from bump + first `-m`; extra `-m` values are body bullets
+5. Runs `./package-app.sh` and verifies `/Applications/Roobytes.app` matches the new marketing version
+
+### Bump inference (when the user does not specify)
+
+| Level | When |
+|-------|------|
+| **patch** | Bug fixes, polish, small UX (default) |
+| **minor** | User-facing features, notable architecture |
+| **major** | Only when the user explicitly asks |
+
+Pass the changelog bullets with `-m` (same text that belongs under `## x.y.z` in `CHANGELOG.md`). The first `-m` is also the git commit subject (type from bump).
+
+```bash
+./ship.sh --dry-run patch -m "example"   # preview only
+./ship.sh --help
+```
+
+## Manual fallback (do not skip package)
+
+If you must ship by hand instead of `./ship.sh`:
+
+1. Bump version + build in `Resources/Info.plist`
+2. Update `CHANGELOG.md` + About fallbacks in `AppDelegate`
+3. Run `./test.sh` when RoobytesCore / editor logic changed
+4. Commit when the user asked to commit
+5. **Must run** `./package-app.sh`
+6. Verify:
+
+```bash
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' /Applications/Roobytes.app/Contents/Info.plist
+```
+
+## Launch path
+
+- [`run.sh`](run.sh) already invokes `./package-app.sh` before `open -a Roobytes`. Prefer it for local smoke launches without a version bump.
+- `swift build` / `./test.sh` alone is **not** a ship — never tell the user a new version is live until `package-app.sh` (or `./ship.sh`) has succeeded.
+
+## Version string source of truth
+
+- Marketing version + build live only in `Resources/Info.plist`.
+- Release notes live in `CHANGELOG.md` (not the README).
+- `ship.sh` / `package-app.sh` / `run.sh` read the version from that plist (do not hardcode a second `VERSION=` that can drift).

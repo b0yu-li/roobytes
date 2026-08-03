@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a0e"/>
+      <stop offset="50%" stop-color="#0e0e12"/>
+      <stop offset="100%" stop-color="#060608"/>
+    </linearGradient>
+
+    <linearGradient id="glassFill" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="18%" stop-color="#e4eaf6"/>
+      <stop offset="45%" stop-color="#a8b8d4"/>
+      <stop offset="70%" stop-color="#c8d4e8"/>
+      <stop offset="100%" stop-color="#f0f4ff"/>
+    </linearGradient>
+
+    <linearGradient id="neonEdge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="40%" stop-color="#40e0ff"/>
+      <stop offset="60%" stop-color="#a060ff"/>
+      <stop offset="100%" stop-color="#c840ff"/>
+    </linearGradient>
+
+    <filter id="neonGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="ambientGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="35" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="0 0 0 0 0.2
+                0 0 0 0 0.6
+                0 0 0 0 1
+                0 0 0 0.4 0"/>
+    </filter>
+
+    <filter id="bodyGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <radialGradient id="ambLight" cx="0.4" cy="0.3" r="0.65">
+      <stop offset="0%" stop-color="rgba(60,120,200,0.08)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Full-bleed background: let macOS system mask handle the shape -->
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#ambLight)"/>
+
+  <!-- Neon ambient bloom behind the O -->
+  <ellipse cx="512" cy="512" rx="200" ry="230" fill="rgba(80,180,255,0.15)" filter="url(#ambientGlow)"/>
+
+  <!-- Glass O ring body -->
+  <path d="
+    M 512 240
+    C 368 240 280 358 280 512
+    C 280 666 368 784 512 784
+    C 656 784 744 666 744 512
+    C 744 358 656 240 512 240
+    Z
+    M 512 348
+    C 605 348 652 425 652 512
+    C 652 599 605 676 512 676
+    C 419 676 372 599 372 512
+    C 372 425 419 348 512 348
+    Z"
+    fill="url(#glassFill)"
+    fill-rule="evenodd"
+    filter="url(#bodyGlow)"
+    opacity="0.92"
+  />
+
+  <!-- Specular highlight on top-left -->
+  <path d="
+    M 415 295
+    C 360 330 325 395 320 470
+    C 318 485 328 488 335 482
+    C 350 430 380 375 430 335
+    C 440 328 435 288 415 295
+    Z"
+    fill="rgba(255,255,255,0.5)"
+  />
+
+  <!-- Neon edge outer ring -->
+  <path d="
+    M 512 240
+    C 368 240 280 358 280 512
+    C 280 666 368 784 512 784
+    C 656 784 744 666 744 512
+    C 744 358 656 240 512 240
+    Z"
+    fill="none"
+    stroke="url(#neonEdge)"
+    stroke-width="3.5"
+    filter="url(#neonGlow)"
+  />
+
+  <!-- Neon edge inner ring -->
+  <path d="
+    M 512 348
+    C 419 348 372 425 372 512
+    C 372 599 419 676 512 676
+    C 605 676 652 599 652 512
+    C 652 425 605 348 512 348
+    Z"
+    fill="none"
+    stroke="url(#neonEdge)"
+    stroke-width="2.5"
+    filter="url(#neonGlow)"
+  />
+
+  <!-- Hash motif with neon glow -->
+  <g opacity="0.55" filter="url(#neonGlow)" transform="translate(628, 598) scale(0.5)">
+    <rect x="26" y="0" width="8" height="95" rx="3" fill="#60d0ff" transform="rotate(-14 30 48)"/>
+    <rect x="62" y="0" width="8" height="95" rx="3" fill="#60d0ff" transform="rotate(-14 66 48)"/>
+    <rect x="2" y="22" width="95" height="8" rx="3" fill="#a070ff"/>
+    <rect x="2" y="56" width="95" height="8" rx="3" fill="#a070ff"/>
+  </g>
+</svg>

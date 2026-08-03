@@ -1,0 +1,72 @@
+---
+description: Roobytes Live Preview — active line, folds, task states, caret mapping, italic round-trip
+globs: Sources/Roobytes/MarkdownBridge*.swift,Sources/Roobytes/EditorViewController+LivePreview*.swift,Sources/Roobytes/EditorViewController.swift
+alwaysApply: false
+---
+
+# Roobytes Live Preview
+
+## File map
+
+- `MarkdownBridge.swift` — render / parse / fonts / checkbox draw
+- `+CaretMapping.swift` — `markdownCaret`, `attributedLocation`, columns
+- `+Folds.swift` — nested-list fold ranges / cues / visibility
+- `+Sync.swift` — line-join recovery / decorated-preview detection
+- `+Tasks.swift` — task state / markers / undo-jump helpers
+- `+Serializer.swift` — attributed → markdown (inline roles)
+- `EditorViewController+LivePreview.swift` — restyle + sync invariants + source-line index cache
+- `+LivePreviewScroll.swift` — scroll pinning / viewport visibility helpers
+- `+LivePreviewGutter.swift` — line-index cache wiring, gutter metrics, bottom overscroll
+- `+LivePreviewParagraph.swift` — caret paragraph text/offset helpers
+- `+LivePreviewAutoEval.swift` — `=` sum + time-range auto-eval inserts
+- `+LivePreviewCelebration.swift` — task-complete confetti anchor
+
+## Active vs decorated
+
+- **Active source line** (Insert / caret line): raw markdown (`+ [ ]`, `#` headings)
+- **Inactive lines**: decorated (checkbox attachment, styled headings, etc.)
+- Do not reintroduce Source Mode or reverse-convert markdown on Insert typing
+
+### Stale-attribute invariant
+
+`syncLineAtIndex` guards (`looksDecorated`, `isDecoratedBlockLine`, heading-body match) protect against writing decorated glyphs back to markdown. **These guards must NEVER fire on the active source line** (`lineIdx == activeSourceLine`), because that line is always raw text — its `mdBlock` / attributes may be stale from a prior restyle and will mismatch the current raw content.
+
+Violation symptom: user edits in Insert, backspaces past a structural boundary (e.g. deletes `]` from `+ [ ] `), syncs start returning `SKIP decoratedBlock`, all subsequent typing is lost on Escape.
+
+Rule: any new guard added to `syncLineAtIndex` must be wrapped with `lineIdx != activeSourceLine` (or equivalent).
+
+### Newline join / plain duplicates
+
+Deleting the newline after the active raw line joins paragraphs in the view. Sync must **drop the absorbed next markdown line** (`lineIndexAbsorbedAfterJoin`) or the next restyle resurrects it as a plain duplicate (e.g. bullet body + orphaned body text).
+
+Backspace at column 0 joins into the **previous** paragraph. Sync must **merge into that neighbor and delete the active line** (`markdownAfterBackspaceJoin` / `reconcileBackspaceJoin`), then move `activeSourceLine` there — otherwise Esc skips the write (`caret on source line N-1`) and restyles the orphan as a new plain line under the caret.
+
+After any join, **invalidate incremental restyle** and rebuild the attributed string (view line ordinals ≠ markdown indices once a newline was removed). Esc always full-restyles for the same reason.
+
+Never fall back to `currentParagraphText()` for the active line when the caret paragraph’s `mdSourceLine` is a different index (unless reconciling a backspace join into that index).
+
+## Folds
+
+- Nested-list folds hide children in the **view only**; markdown source is unchanged
+- View line ordinal ≠ markdown line index under folds
+- Sync / restyle / sync-line must resolve paragraphs via **`mdSourceLine`**, never by indexing view lines with a markdown index
+
+## Task marker states
+
+| Marker | State |
+|--------|--------|
+| `[ ]` | open (undone) |
+| `[!]` | focused (undone) |
+| `[x]` | done |
+| `[~]` | deprecated |
+
+## Caret mapping
+
+- Use `MarkdownBridge` helpers (`markdownCaret`, `attributedLocation`, `contentStartColumn`, `taskState`, fold helpers)
+- Do not invent parallel parsers for tasks, URLs, or columns
+
+## Italic round-trip
+
+- PT Mono (and many monospace fonts) lack a true italic. Synthesize the slant with the **`.obliqueness` attribute** (`MarkdownBridge.applyItalicStyle`), never with a transformed font — `NSFont(descriptor:textTransform:)` takes its size from the transform, so an unscaled matrix yields a **1pt font and invisible text**. `.obliqueness` also preserves monospace advances, which caret column mapping depends on.
+- Tag italic runs with `mdInline = "italic"` so `+Serializer` keeps `*…*` even when font traits alone would miss them; use `MarkdownBridge.isItalic(attrs)` (trait ∪ skew ∪ role) rather than checking `.italicFontMask` directly
+- Underscore italics (`_…_`) render the same as `*…*`; word-interior `_` (`snake_case`) stays literal

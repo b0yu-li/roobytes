@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": ".cursor/hooks/ship-reminder.sh",
+        "timeout": 5
+      }
+    ]
+  }
+}

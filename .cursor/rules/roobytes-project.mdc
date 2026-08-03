@@ -1,0 +1,38 @@
+---
+description: Roobytes project map — stack, layout, and feature checklist for agents
+alwaysApply: true
+---
+
+# Roobytes project map
+
+Native macOS markdown notes (AppKit + RoobytesCore SPM). **Live Preview only** — no Source Mode. No sidebar drawer (`⌘P` Go to File only).
+
+## Layout
+
+- `Sources/Roobytes/` — app UI
+  - `EditorViewController.swift` — shell / state (≈469 lines)
+  - Extensions: `+Vim`, `+VimMotions`, `+VimEdits`, `+VimCommandLine`, `+WordCompletion`, `+LivePreview`, `+CaretFeedback`
+  - Overlays: `FileSwitcherController` (owns `RoobytesSidebarRowView`), `VimHelp`, `RoobytesTips`, command palette
+- `MarkdownBridge` — pure markdown ↔ attributed / caret / task / fold / serializer
+- `MarkdownBridge.swift` + `+CaretMapping`, `+Folds`, `+Serializer`, `+Sync`, `+Tasks`
+- `FirefoxLauncher.swift` — `BrowserLauncher` (default browser; Firefox Private for `gX`); `FirefoxLauncher` typealias kept
+- `FileWatcher.swift` — `DispatchSource` file monitor (external-edit reload); never reloads in Insert mode
+- `Tests/RoobytesCoreTests` — harness tests (`./test.sh`); prefer helpers here over UI-only changes
+- Ship: `./ship.sh patch|minor|major -m "…"` → bump + commit + `/Applications/Roobytes.app` (see **ship-package** rule)
+
+## Adding a Normal-mode chord / binding
+
+0. **Vim ergonomics first** — prefer the canonical vim key / case split when the action matches a known verb; do not invent chords that contradict muscle memory (see **roobytes-vim** → Ergonomics & convention).
+1. Wire key (or pending first key) in `EditorViewController+Vim.swift`; handler in `+VimEdits.swift` or `+VimMotions.swift`
+2. `VimChordHints` row when it is a pending two-key chord
+3. **Required:** update `VimHelp` (`:h` / `:help`) — add the keys to the right section. Never ship a new Normal binding without a `:h` row.
+4. Tip in `RoobytesTips` if user-facing
+5. RoobytesCoreTests for pure helpers (+ assert `VimHelp.text` mentions the new keys)
+6. `./ship.sh patch|minor -m "…"` (see **ship-package**)
+
+## Related rules
+
+- **ship-package** — `./ship.sh` (bump / commit / package / verify)
+- **roobytes-vim** — Roobytes-flavored Normal chords (when editing vim files)
+- **roobytes-live-preview** — active line, folds, caret mapping, italic round-trip
+- **todo-checkbox** — checkbox glyph hard rules in `MarkdownBridge`

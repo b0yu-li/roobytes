@@ -1,0 +1,11 @@
+.build/
+.swiftpm/
+*.xcodeproj
+DerivedData/
+.DS_Store
+Roobytes.app/
+Resources/AppIcon.iconset/
+.vscode/changelists.json
+README.md.bak
+*.md.bak
+.cursor/plans/

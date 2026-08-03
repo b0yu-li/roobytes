@@ -1,0 +1,26 @@
+---
+description: TODO checkbox icon must stay large and perfectly square
+globs: Sources/Roobytes/MarkdownBridge.swift,Sources/Roobytes/MarkdownBridge+Tasks.swift
+alwaysApply: false
+---
+
+# TODO checkbox icon (Roobytes)
+
+Collapsed task markers (`+ [ ]` / `+ [x]`) render as a custom-drawn checkbox attachment in `MarkdownBridge.taskCheckboxAttachment` / `makeSquareCheckboxImage` (draw helpers live in `MarkdownBridge.swift`; task state helpers in `+Tasks.swift`).
+
+## Hard rules — do not regress
+
+1. **Perfectly square glyph** — the checkbox itself is drawn in an `N×N` image. Never draw the icon into a non-square rect. Never stretch SF Symbols to fill a wide cell (they are not 1:1 and look small/stretched).
+2. **Size** — `checkboxPointSize` must stay **≥ 14** (currently **15**). Do not shrink it to “fit” line height; raise `taskLineHeight` instead if needed.
+3. **Trailing gap ≠ stretch** — spacing after the box is transparent padding beside the square (`checkboxTrailingGap`), or a separate layout gap. Attachment `bounds.height` must equal the square side; `bounds.width` may be `side + gap` only because the image draws the square in the left `side×side` region.
+4. **Custom draw, not SF Symbol** — use `makeSquareCheckboxImage` (rounded rect + optional white check). Do not switch back to `checkmark.square.fill` / `square` for the primary glyph.
+5. **Checked style** — coral fill (`taskDoneFill`) + white check; unchecked = stroked square with `secondaryLabelColor`.
+6. **Vertical align** — center the square in the body font em-box (`ascender…descender`), not by making the attachment as tall as `taskLineHeight`.
+
+## When editing tasks / Live Preview
+
+Active source lines show raw `+ [ ]` text. Inactive lines use this square attachment. Changing Live Preview must not replace this icon with unicode ☐/☑ or SF Symbols.
+
+## Insert vs rendered line height
+
+Active (Insert) task/bullet lines must use the same `minimumLineHeight` (`taskLineHeight`) and `paragraphSpacing` as rendered task lines. Do **not** set `maximumLineHeight` to that box — wrapped task lines (long URLs / prose) need to grow. Do not style active task lines with `.paragraph` metrics — that causes uneven gaps above/below the caret line.

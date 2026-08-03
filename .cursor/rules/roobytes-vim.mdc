@@ -1,0 +1,102 @@
+---
+description: Roobytes-flavored vim Normal mode — chords, overlays, completion anchors
+globs: Sources/Roobytes/EditorViewController+Vim*.swift,Sources/Roobytes/EditorViewController+WordCompletion.swift,Sources/Roobytes/EditorViewController.swift,Sources/Roobytes/Vim*.swift,Sources/Roobytes/RoobytesEditorTextView.swift
+alwaysApply: false
+---
+
+# Roobytes vim (not vanilla)
+
+## Ergonomics & convention (required)
+
+Roobytes is **Roobytes-flavored**, not a full Vim port — but Normal-mode bindings must still **respect Vim ergonomics and convention**:
+
+1. **Prefer the canonical vim key** when the action matches a known verb (`K` = keyword/`keywordprg` lookup, `gx` = open URL under cursor, `u` = undo, `zz` = center, …).
+2. **Home-row / shift pairs** stay familiar: lowercase motion (`k` up) vs uppercase command (`K` lookup); `g`/`G`, `o`/`O`, `p`/`P` follow the same case split.
+3. **Do not invent cute chords** that steal or contradict muscle memory (`gd` ≠ Dictionary; `gk` is display-line up in vim — avoid for Look Up).
+4. Roobytes-only ideas (tasks `md`/`mf`, folds `za`) may use free letters, but document them in `:h` and keep them consistent once shipped.
+5. When choosing a new binding, ask: *Would a vim user guess this on the first try?* If not, prefer the vim analogue or a clear pending chord (`g…`) over a random single key.
+
+## File map
+
+- `EditorViewController+Vim.swift` — key dispatch, Esc, mode switch (Normal / Insert / Visual), insert placement
+- `+VimMotions.swift` — h/j/k/l, w/b/e, scrolls, caret; Visual extends selection via `visualAnchor` / `visualCaret`
+- `+VimEdits.swift` — dd/yy/put, tasks, folds, URL open, Look Up (`K`), spell fix (`z=`), undo
+- `+VimCommandLine.swift` — `:`, help, tips, chord HUD, palette
+- `+WordCompletion.swift` — Insert menu / ghost / accept
+- `RoobytesEditorTextView.swift` — keyDown / insertText / doCommand gates · `VimVisual` selection math
+
+## Vertical motion (`j` / `k`)
+
+- **Bare `j`/`k` walk display rows** (wrapped paragraphs are reachable); **a count keeps logical lines** — `LineNumberGutterView` draws one hybrid relative number per logical line and labels the colors `j` / `k`, so `5j` must land on the row labelled `5`. Policy lives in `VimVerticalMotion.usesDisplayRows`; `gj`/`gk` force rows.
+- Display rows walk `NSLayoutManager` line fragments. The trailing empty line after a final newline owns **no glyphs** — handle it via `extraLineFragmentTextContainer` / `extraLineFragmentRect` or `j` can never reach EOF.
+- Both paths keep a **sticky goal** (`vimVerticalGoalX` / `vimVerticalGoalColumn`) so passing a short line does not truncate the column. It is validated by `vimVerticalGoalAnchor` (the caret location the last vertical motion produced), so any other motion or edit drops it automatically — do not add manual invalidation to each motion.
+
+## Caret (do not reintroduce blink)
+
+- **Normal / Visual are steady; only Insert blinks.** `RoobytesEditorTextView.updateInsertionPointStateAndRestartTimer` forces `false` outside Insert.
+- **Color role:** all “you are here” feedback uses `RoobytesAccent.caret` (the preset’s supplementary/bright companion): Normal block selection, Insert caret, pending underscore, checkbox ring, jump feedback, and titlebar mode dot. Task fills, focus wash, and pins stay on primary `RoobytesAccent.color`.
+- Over a character the Normal caret is **not** an insertion point — it is a one-character selection (`refreshBlockCaret` + `RoobytesAccent.selectionAttributes`) so wide/CJK glyphs and checkbox attachments get exact width and a white glyph. Selections never blink.
+- `drawInsertionPoint` only paints the block/underscore at EOL, blank lines, and EOF (selection length 0). Gate it on `flag || shouldDrawInsertionPoint` so an unfocused view still erases.
+- **Task checkbox** — never select or fill it: `taskDoneFill` / `[!]` use the same accent as the selection paint, so a block there reads as one flat slab. `refreshBlockCaret` collapses on an `.attachment`, and `drawInsertionPoint` strokes a rounded ring around `checkboxSquareRect` (baseline-derived, excludes `checkboxTrailingGap`).
+
+## Visual (thin characterwise)
+
+- **`v`** — enter characterwise Visual from Normal (toggle `v` / Esc leave)
+- Motions (`h/j/k/l`, `w/b/e`, `0/$`, `gg`/`G`, arrows, counts) extend an AppKit selection
+- Format with **⌘B** / **⌘I** (no vim bold/italic operators)
+- A persistent frosted `VISUAL · ⌘B bold · ⌘I italic · Esc` badge sits bottom-left; keep bottom-right free for chord hints
+- No linewise `V`, blockwise, or operator-pending on the range (yet)
+
+## Yank / put
+
+- **`yy`** — content yank: strip list/task markers and a leading `tag: ` (e.g. `t: `). Fills pasteboard + `vimYankLines`.
+- **`dd`** — full source line cut (markers included).
+- **`yyp`** pastes body-only lines by design — not a bug.
+
+## Tasks
+
+- **`mf`** / **`'f`** — focus pin (`[!]` toggle / jump); one named destination
+- **`]t`** / **`[t`** — next / previous undone task (`[ ]` or `[!]`); counts (`3]t`); no wrap, beep if none
+- **`md`** / **`mD`** — mark done / open
+- **Cascade:** open (or newly created) nested task reopens a done parent; all direct children done/deprecated completes the parent. Same rule on Enter / `o` / Esc after Insert.
+
+## Links
+
+- **`gx`** — open URL under caret in the **default browser** (`BrowserLauncher` / `NSWorkspace`)
+- **`gX`** — Firefox Private when Firefox is installed; otherwise falls back to default browser
+
+## Look Up
+
+- **`K`** — system Dictionary / Look Up for the word under the caret (`WordUnderCaret` + `NSView.showDefinition`). Beep if none.
+- **Why `K`:** classic vim runs `keywordprg` on the word under the cursor with **`K`** (often `man`). macOS Dictionary is the natural Roobytes stand-in. Free key (`k` remains up); Shift+`k` is one-handed and matches the motion/command case split.
+
+## Spelling
+
+- **`z=`** — auto-apply the **first** macOS `NSSpellChecker` guess for the word under the caret (markdown line). Flash `Fixed → …`; beep + `No suggestions` if none. No suggestion menu (Roobytes shortcut vs full vim `z=` picker).
+
+## `:h` / VimHelp (required)
+
+When adding or changing any Normal-mode binding (single key or chord), **always** update `VimHelp.swift` so `:h` / `:help` stays the source of truth. Also extend the `VimHelp.text.contains(…)` checks in `Tests/RoobytesCoreTests`. Do not leave help stale.
+
+## Esc / control keys
+
+- Esc with word-completion visible → dismiss menu **and** go to Normal (one press)
+- Block Insert-mode control newlines: **`^O`**, **`^J`**, **`^M`** (must not leak as raw `\n` via `insertText`)
+- Bare `\n`/`\r` in `insertText` must route through `insertNewlineContinuingList`
+
+## New two-key chords
+
+- Pending first key via `setPendingVimKey`; keep `vimCount` for motions like `dd`
+- Add a `VimChordHints` entry for that pending key
+- Land jumps on `contentStartColumn` and center when matching `'f` / `]t`
+
+## Overlays
+
+- File Switcher (`⌘P`), `:`, help/tips: claim first responder after menu actions (async refocus if needed)
+- Do not leave Normal vim as first responder — it swallows typing while arrows may still work via monitors
+- **`:h` scroll:** while help is open, **`⌃e`/`⌃y`** line and **`⌃d`/`⌃u`** half-page scroll the help panel (same chords as Normal viewport scroll). Esc / `q` dismiss.
+
+## Word completion anchors
+
+- Menu/ghost X/Y from **layout-manager glyph bounds** in text-view space, converted to the host view
+- Never `firstRect` → screen → window; bogus X gets clamped to the trailing edge
