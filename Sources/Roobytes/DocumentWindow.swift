@@ -486,7 +486,22 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, Edit
             openFile(url)
             return nil
         } catch DailyNotes.EnsureError.templateMissing {
-            return "Missing \(DailyNotes.templateFileName) at vault root — add a template before :daily"
+            let installed = DailyNotesTemplateSetup.presentMissingTemplateAlert(
+                vault: folderURL,
+                window: window
+            )
+            guard installed else {
+                return "Missing \(DailyNotes.templateFileName) — set up a template to use :daily"
+            }
+            do {
+                let url = try DailyNotes.ensureTodaysNote(vault: folderURL)
+                openFile(url)
+                return nil
+            } catch DailyNotes.EnsureError.writeFailed(let detail) {
+                return "Daily note failed: \(detail)"
+            } catch {
+                return "Daily note failed"
+            }
         } catch DailyNotes.EnsureError.writeFailed(let detail) {
             return "Daily note failed: \(detail)"
         } catch {

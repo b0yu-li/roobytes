@@ -157,6 +157,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValid
         return windows.last
     }
 
+    /// Vault root of the key (or last) document window, if any.
+    func keyVaultURL() -> URL? {
+        keyController()?.folderURL
+    }
+
     private func openURL(_ url: URL) {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { return }
@@ -302,8 +307,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValid
     // MARK: - Actions
 
     @objc private func showAbout(_ sender: Any?) {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.3"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "5"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.2.0"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "7"
         let credits = NSAttributedString(
             string: "Native markdown notes · WYSIWYG · PT Mono · live Mem\nVersion \(version)",
             attributes: [

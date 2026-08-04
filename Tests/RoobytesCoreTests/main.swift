@@ -834,6 +834,10 @@ do {
     }))
     T.check("tips catalog non-empty", !RoobytesTips.all.isEmpty)
     T.check("tips has daily-note", RoobytesTips.all.contains(where: { $0.id == "daily-note" }))
+    T.check("tips daily mentions setup", RoobytesTips.all.contains(where: {
+        $0.id == "daily-note" && $0.body.contains("Create starter")
+    }))
+    T.check("help :daily mentions template prompt", VimHelp.text.contains("prompts if template"))
     T.check("tips has lookup-k", RoobytesTips.all.contains(where: { $0.id == "lookup-k" }))
     T.check("tips has visual-select", RoobytesTips.all.contains(where: { $0.id == "visual-select" }))
     T.check("tips visual mentions yank", RoobytesTips.all.contains(where: {
@@ -1003,16 +1007,39 @@ do {
         T.check("missing template wrong error", false)
     }
 
-    // Create from template.
-    let templateBody = "## Todos\n+ [ ] item\n"
-    try! templateBody.write(to: DailyNotes.templateURL(vault: vault), atomically: true, encoding: .utf8)
+    T.check("templateExists false", !DailyNotes.templateExists(vault: vault, fileManager: fm))
+
+    // Install starter, then create from it.
+    try! DailyNotes.installStarterTemplate(vault: vault, fileManager: fm)
+    T.check("templateExists after starter", DailyNotes.templateExists(vault: vault, fileManager: fm))
+    let starterURL = DailyNotes.templateURL(vault: vault)
+    T.eq(
+        "starter body",
+        try! String(contentsOf: starterURL, encoding: .utf8),
+        DailyNotes.starterTemplateMarkdown
+    )
     let created = try! DailyNotes.ensureTodaysNote(vault: vault, date: date, calendar: cal, fileManager: fm)
     T.eq("created name", created.lastPathComponent, "2026-07-28.md")
-    T.eq("created body", try! String(contentsOf: created, encoding: .utf8), templateBody)
+    T.eq(
+        "created body",
+        try! String(contentsOf: created, encoding: .utf8),
+        DailyNotes.starterTemplateMarkdown
+    )
 
     // Second call reopens existing (no duplicate).
     let again = try! DailyNotes.ensureTodaysNote(vault: vault, date: date, calendar: cal, fileManager: fm)
     T.eq("reopen same", again.path, created.path)
+
+    // Copy-install overwrites template.
+    let other = vault.appendingPathComponent("other-template.md")
+    let otherBody = "## Copied\n+ [ ] from pick\n"
+    try! otherBody.write(to: other, atomically: true, encoding: .utf8)
+    try! DailyNotes.installTemplate(copying: other, vault: vault, fileManager: fm)
+    T.eq(
+        "copy install body",
+        try! String(contentsOf: DailyNotes.templateURL(vault: vault), encoding: .utf8),
+        otherBody
+    )
 }
 
 // MARK: - Heading accent colors

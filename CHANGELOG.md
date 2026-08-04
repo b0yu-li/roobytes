@@ -8,6 +8,14 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.2.0
+
+- Daily notes template setup from :daily and Settings
+
+## 0.1.4
+
+- Daily notes template setup: Create starter or Choose file when missing; Preferences Daily notes section
+
 ## 0.1.3
 
 - Add Hide / Hide Others / Show All so ⌘H works

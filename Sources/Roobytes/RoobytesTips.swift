@@ -33,7 +33,7 @@ public enum RoobytesTips {
         Tip(
             id: "daily-note",
             title: "Daily note",
-            body: ":daily (or :today) opens diaries/YYYY-MM-DD.md. Requires vault-root daily-notes-temp.md (and an open vault)."
+            body: ":daily (or :today) opens diaries/YYYY-MM-DD.md from vault-root daily-notes-temp.md. If the template is missing, Roobytes offers Create starter or Choose file…"
         ),
         Tip(
             id: "chord-hints",

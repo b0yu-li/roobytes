@@ -68,7 +68,7 @@ public enum VimHelp {
             Row(keys: ":e!", blurb: "Discard edits"),
             Row(keys: ":q", blurb: "Quit window"),
             Row(keys: ":pin", blurb: "Float on top"),
-            Row(keys: ":daily", blurb: "Open / create today’s note (:today)"),
+            Row(keys: ":daily", blurb: "Open / create today’s note (:today); prompts if template missing"),
             Row(keys: ":folddone", blurb: "Fold all done task nests"),
             Row(keys: ":complete", blurb: "Toggle Insert word complete"),
             Row(keys: ":h", blurb: "This reference"),

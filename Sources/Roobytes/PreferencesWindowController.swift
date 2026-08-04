@@ -41,6 +41,9 @@ final class PreferencesWindowController: NSWindowController {
         target: nil,
         action: nil
     )
+    private let dailyTemplateStatusLabel = NSTextField(labelWithString: "")
+    private let dailyCreateStarterButton = NSButton(title: "Create starter", target: nil, action: nil)
+    private let dailyChooseFileButton = NSButton(title: "Choose file…", target: nil, action: nil)
     private let debugLoggingCheckbox = NSButton(
         checkboxWithTitle: "Debug logging (vim / newlines)",
         target: nil,
@@ -137,12 +140,39 @@ final class PreferencesWindowController: NSWindowController {
             body: editorChecks
         ))
 
+        // Daily notes
+        dailyTemplateStatusLabel.font = .systemFont(ofSize: 12)
+        dailyTemplateStatusLabel.textColor = .secondaryLabelColor
+        dailyTemplateStatusLabel.maximumNumberOfLines = 2
+        dailyTemplateStatusLabel.lineBreakMode = .byWordWrapping
+        dailyCreateStarterButton.target = self
+        dailyCreateStarterButton.action = #selector(createDailyStarter(_:))
+        dailyCreateStarterButton.bezelStyle = .rounded
+        dailyCreateStarterButton.controlSize = .small
+        dailyChooseFileButton.target = self
+        dailyChooseFileButton.action = #selector(chooseDailyTemplate(_:))
+        dailyChooseFileButton.bezelStyle = .rounded
+        dailyChooseFileButton.controlSize = .small
+        let dailyButtons = NSStackView(views: [dailyCreateStarterButton, dailyChooseFileButton])
+        dailyButtons.orientation = .horizontal
+        dailyButtons.alignment = .centerY
+        dailyButtons.spacing = 8
+        let dailyStack = NSStackView(views: [dailyTemplateStatusLabel, dailyButtons])
+        dailyStack.orientation = .vertical
+        dailyStack.alignment = .leading
+        dailyStack.spacing = 8
+        column.addArrangedSubview(section(
+            title: "Daily notes",
+            caption: "`:daily` / `:today` · vault-root \(DailyNotes.templateFileName)",
+            body: dailyStack
+        ))
+
         // Sound
         typewriterSoundCheckbox.target = self
         typewriterSoundCheckbox.action = #selector(toggleTypewriterSound(_:))
         column.addArrangedSubview(section(
             title: "Sound",
-            caption: "Clicks & chimes · off by default",
+            caption: "Clicks & chimes · on by default",
             body: typewriterSoundCheckbox
         ))
 
@@ -279,6 +309,38 @@ final class PreferencesWindowController: NSWindowController {
         } else {
             lastFileLabel.stringValue = "None yet"
             clearButton.isEnabled = false
+        }
+
+        refreshDailyTemplateStatus()
+    }
+
+    private func refreshDailyTemplateStatus() {
+        guard let vault = AppDelegate.shared?.keyVaultURL() else {
+            dailyTemplateStatusLabel.stringValue = "No vault open — Open Folder… (⇧⌘O) first"
+            dailyCreateStarterButton.isEnabled = false
+            dailyChooseFileButton.isEnabled = false
+            return
+        }
+        dailyCreateStarterButton.isEnabled = true
+        dailyChooseFileButton.isEnabled = true
+        if DailyNotes.templateExists(vault: vault) {
+            dailyTemplateStatusLabel.stringValue = "Template ready · \(DailyNotes.templateFileName)"
+        } else {
+            dailyTemplateStatusLabel.stringValue = "Missing \(DailyNotes.templateFileName)"
+        }
+    }
+
+    @objc private func createDailyStarter(_ sender: Any?) {
+        guard let vault = AppDelegate.shared?.keyVaultURL() else { return }
+        if DailyNotesTemplateSetup.createStarterFromSettings(vault: vault) {
+            refreshDailyTemplateStatus()
+        }
+    }
+
+    @objc private func chooseDailyTemplate(_ sender: Any?) {
+        guard let vault = AppDelegate.shared?.keyVaultURL() else { return }
+        if DailyNotesTemplateSetup.chooseFileFromSettings(vault: vault) {
+            refreshDailyTemplateStatus()
         }
     }
 

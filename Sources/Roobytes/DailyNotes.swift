@@ -1,10 +1,19 @@
 import Foundation
 
 /// Daily note paths and create-from-template for the vault’s `diaries/` folder.
-/// Template path is fixed until onboarding lets the user choose/create one (see BACKLOG.md).
+/// Template path is vault-root `daily-notes-temp.md` (Create starter / Choose file via setup UI).
 public enum DailyNotes {
     public static let templateFileName = "daily-notes-temp.md"
     public static let diariesFolderName = "diaries"
+
+    /// Default body written by “Create starter template”.
+    public static let starterTemplateMarkdown = """
+    ## Focus
+    + [ ]
+
+    ## Notes
+
+    """
 
     public enum EnsureError: Error, Equatable, Sendable {
         case templateMissing
@@ -38,6 +47,46 @@ public enum DailyNotes {
 
     public static func diariesFolder(vault: URL) -> URL {
         vault.appendingPathComponent(diariesFolderName, isDirectory: true)
+    }
+
+    public static func templateExists(
+        vault: URL,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        fileManager.fileExists(atPath: templateURL(vault: vault).path)
+    }
+
+    /// Write the starter markdown to the vault-root template path (overwrites if present).
+    public static func installStarterTemplate(
+        vault: URL,
+        fileManager: FileManager = .default
+    ) throws {
+        let dest = templateURL(vault: vault)
+        do {
+            if fileManager.fileExists(atPath: dest.path) {
+                try fileManager.removeItem(at: dest)
+            }
+            try starterTemplateMarkdown.write(to: dest, atomically: true, encoding: .utf8)
+        } catch {
+            throw EnsureError.writeFailed(error.localizedDescription)
+        }
+    }
+
+    /// Copy `source` into the vault-root template path (overwrites if present).
+    public static func installTemplate(
+        copying source: URL,
+        vault: URL,
+        fileManager: FileManager = .default
+    ) throws {
+        let dest = templateURL(vault: vault)
+        do {
+            if fileManager.fileExists(atPath: dest.path) {
+                try fileManager.removeItem(at: dest)
+            }
+            try fileManager.copyItem(at: source, to: dest)
+        } catch {
+            throw EnsureError.writeFailed(error.localizedDescription)
+        }
     }
 
     /// Prefer exact `YYYY-MM-DD.md`, else any `YYYY-MM-DD*.md` in `diaries/`.
@@ -90,8 +139,7 @@ public enum DailyNotes {
             return existing
         }
 
-        let template = templateURL(vault: vault)
-        guard fileManager.fileExists(atPath: template.path) else {
+        guard templateExists(vault: vault, fileManager: fileManager) else {
             throw EnsureError.templateMissing
         }
 
@@ -106,7 +154,7 @@ public enum DailyNotes {
 
         let destination = folder.appendingPathComponent(fileName(for: date, calendar: calendar))
         do {
-            try fileManager.copyItem(at: template, to: destination)
+            try fileManager.copyItem(at: templateURL(vault: vault), to: destination)
         } catch {
             throw EnsureError.writeFailed(error.localizedDescription)
         }

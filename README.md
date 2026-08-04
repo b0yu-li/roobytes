@@ -19,9 +19,9 @@ Opens the last edited note when possible (see **Settings…** / `⌘,`); otherwi
 ## Features
 
 - Spotlight / Raycast: **Roobytes** (installed to `/Applications`)
-- Settings: **Roobytes → Settings…** (`⌘,`) — appearance, accent, reopen last file, restore pin, tips on startup, word completion, spell checking, sound effects, debug logging
+- Settings: **Roobytes → Settings…** (`⌘,`) — appearance, accent, reopen last file, restore pin, tips on startup, word completion, spell checking, daily notes template, sound effects, debug logging
 - Go to File: **`⌘P`** — frecency-ranked vault jump (fuzzy filter)
-- Daily notes: **`:daily` / `:today`** — opens or creates `diaries/YYYY-MM-DD.md` from vault-root `daily-notes-temp.md` (template must exist)
+- Daily notes: **`:daily` / `:today`** — opens or creates `diaries/YYYY-MM-DD.md` from vault-root `daily-notes-temp.md`. Missing template prompts Create starter / Choose file… (also in Settings → Daily notes)
 - Vim: **`Esc`** Normal · **`u`** undo · **`⌃d`/`⌃u`** half-page scroll · **`r`** · **`za`/`zc`/`zo`** fold nested lists · **`md`/`mD`** mark done/open · **`mf`** focus · **`'f`** go to focus · **`]t`/`[t`** next/prev undone task · **`gx`/`gX`** open URL (default browser / Firefox Private) · **`:w` / `:e!` / `:q` / `:pin` / `:folddone` / `:complete` / `:h` / `:tips`** · **`Tab`** complete (Insert words / `:` cmds) · **`5j`** · **`dd`** · **`yy`** · **`⌘↩`** cycle task
 
 ## Ship
