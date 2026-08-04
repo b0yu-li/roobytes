@@ -455,32 +455,39 @@ extension EditorViewController {
     /// Visual `y` — characterwise yank of the selection; leave Visual at the selection start.
     func vimYankVisualSelection() {
         clearVimPrefix()
-        guard vimMode == .visual,
-              let endpoints = visualMarkdownEndpoints()
-        else {
+        guard vimMode == .visual else {
             leaveVisualMode()
             return
         }
-        syncMarkdownFromView()
+        // Sync before mapping endpoints so carets match post-sync lines (C1).
+        // Skip full attributed→markdown serialize in typical Visual (P2).
+        syncMarkdownBeforeVisualOpIfNeeded()
+        guard let endpoints = visualMarkdownEndpoints() else {
+            leaveVisualMode()
+            return
+        }
         let yanked = VimCharacterwise.slice(
             from: endpoints.lo,
             through: endpoints.hi,
             in: markdownLines
         )
         storeVimYank(yanked, kind: .characterwise, pasteboardTrailingNewline: false)
-        leaveVisualMode(at: endpoints.lo)
+        // Yank does not mutate markdown — skip full Live Preview restyle (P1).
+        leaveVisualMode(at: endpoints.lo, restyle: false)
     }
 
     /// Visual `d` / `x` — characterwise cut of the selection; leave Visual at the deletion start.
     func vimDeleteVisualSelection() {
         clearVimPrefix()
-        guard vimMode == .visual,
-              let endpoints = visualMarkdownEndpoints()
-        else {
+        guard vimMode == .visual else {
             leaveVisualMode()
             return
         }
-        syncMarkdownFromView()
+        syncMarkdownBeforeVisualOpIfNeeded()
+        guard let endpoints = visualMarkdownEndpoints() else {
+            leaveVisualMode()
+            return
+        }
         let lines = markdownLines
         let yanked = VimCharacterwise.slice(
             from: endpoints.lo,
@@ -498,7 +505,7 @@ extension EditorViewController {
             in: lines
         )
         markdownSource = result.lines.joined(separator: "\n")
-        leaveVisualMode(at: result.caret)
+        leaveVisualMode(at: result.caret, restyle: true)
         updateLineNumberGutter()
         delegate?.editorDidChangeText(self)
     }
@@ -577,6 +584,14 @@ extension EditorViewController {
         pb.setString(paste, forType: .string)
     }
 
+    /// Visual keeps `activeSourceLine == nil`; markdown is already authoritative after
+    /// Normal restyles / ⌘B·⌘I (`textDidChange` syncs). Only sync a raw Insert line if one
+    /// somehow remains — avoids `MarkdownBridge.markdown(from:)` over the whole document.
+    private func syncMarkdownBeforeVisualOpIfNeeded() {
+        guard activeSourceLine != nil else { return }
+        syncMarkdownFromView()
+    }
+
     private func visualMarkdownEndpoints() -> (
         lo: MarkdownBridge.MarkdownCaret,
         hi: MarkdownBridge.MarkdownCaret
@@ -585,19 +600,20 @@ extension EditorViewController {
               let anchor = visualAnchor,
               let caret = visualCaret
         else { return nil }
+        let lines = markdownLines
         let a = MarkdownBridge.markdownCaret(
             attributedLocation: anchor,
             attributed: storage,
             markdown: markdownSource,
             activeSourceLine: activeSourceLine,
-            markdownLines: markdownLines
+            markdownLines: lines
         )
         let b = MarkdownBridge.markdownCaret(
             attributedLocation: caret,
             attributed: storage,
             markdown: markdownSource,
             activeSourceLine: activeSourceLine,
-            markdownLines: markdownLines
+            markdownLines: lines
         )
         return VimCharacterwise.ordered(a, b)
     }

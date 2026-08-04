@@ -43,8 +43,9 @@ Roobytes is **Roobytes-flavored**, not a full Vim port — but Normal-mode bindi
 
 - **`v`** — enter characterwise Visual from Normal (toggle `v` / Esc leave)
 - Motions (`h/j/k/l`, `w/b/e`, `0/$`, `gg`/`G`, arrows, counts) extend an AppKit selection
-- **`y`** — characterwise yank of the selection (markdown source via caret mapping); leave Visual at selection start
-- **`d`** / **`x`** — characterwise cut (yank + delete); leave Visual at deletion start
+- **`y`** — characterwise yank of the selection (markdown source via caret mapping); leave Visual at selection start **without** full Live Preview restyle
+- **`d`** / **`x`** — characterwise cut (yank + delete); leave Visual at deletion start (restyles; same cost class as `dd`)
+- Visual ops skip full attributed→markdown serialize when `activeSourceLine` is nil (normal Visual); map endpoints after any sync
 - Format with **⌘B** / **⌘I** (no vim bold/italic operators)
 - A persistent frosted `VISUAL · y yank · d cut · ⌘B/⌘I · Esc` badge sits bottom-left; keep bottom-right free for chord hints
 - No linewise `V`, blockwise, or operator-pending motions on the range (yet)

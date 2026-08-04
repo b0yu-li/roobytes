@@ -512,12 +512,16 @@ extension EditorViewController {
         }
     }
 
-    func leaveVisualMode(at markdownCaret: MarkdownBridge.MarkdownCaret? = nil) {
+    /// Leave Visual. When `markdownCaret` is set, land there; pass `restyle: false` for
+    /// no-op content changes (Visual `y`) to skip a full Live Preview rebuild.
+    func leaveVisualMode(
+        at markdownCaret: MarkdownBridge.MarkdownCaret? = nil,
+        restyle: Bool = true
+    ) {
         let movingEnd = visualCaret ?? textView.selectedRange().location
         visualAnchor = nil
         visualCaret = nil
         if let markdownCaret {
-            // Land on an explicit markdown caret without the Esc sync/restyle path.
             endVimCommandLine()
             hideWordCompletion()
             clearVimPrefix()
@@ -526,7 +530,11 @@ extension EditorViewController {
             vimMode = .normal
             visualModeBadge.hide()
             activeSourceLine = nil
-            liveRestyle(to: markdownCaret, animateScroll: false)
+            if restyle {
+                liveRestyle(to: markdownCaret, animateScroll: false)
+            } else {
+                landNormalCaret(at: markdownCaret)
+            }
             refreshBlockCaret()
             textView.updateInsertionPointStateAndRestartTimer(true)
             textView.setNeedsDisplay(textView.visibleRect)
@@ -539,6 +547,23 @@ extension EditorViewController {
         textView.setSelectedRange(NSRange(location: movingEnd, length: 0))
         isUpdatingBlockCaret = false
         setVimMode(.normal)
+    }
+
+    /// Place the Normal block caret at `markdownCaret` without rebuilding attributed text.
+    private func landNormalCaret(at markdownCaret: MarkdownBridge.MarkdownCaret) {
+        guard let storage = textView.textStorage else { return }
+        refreshSourceLineParagraphIndexIfNeeded()
+        let loc = MarkdownBridge.attributedLocation(
+            for: markdownCaret,
+            attributed: storage,
+            markdown: markdownSource,
+            activeSourceLine: activeSourceLine,
+            markdownLines: markdownLines,
+            sourceLineParagraphIndex: sourceLineParagraphIndex
+        )
+        isUpdatingBlockCaret = true
+        textView.setSelectedRange(NSRange(location: loc, length: 0))
+        isUpdatingBlockCaret = false
     }
 
     func applyVisualSelection() {
