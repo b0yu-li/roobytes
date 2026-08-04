@@ -194,6 +194,24 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValid
         appMenu.addItem(.separator())
         appMenu.addItem(appAction("Settings…", #selector(showPreferences(_:)), key: ","))
         appMenu.addItem(.separator())
+        appMenu.addItem(
+            withTitle: "Hide Roobytes",
+            action: #selector(NSApplication.hide(_:)),
+            keyEquivalent: "h"
+        )
+        let hideOthers = NSMenuItem(
+            title: "Hide Others",
+            action: #selector(NSApplication.hideOtherApplications(_:)),
+            keyEquivalent: "h"
+        )
+        hideOthers.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(hideOthers)
+        appMenu.addItem(
+            withTitle: "Show All",
+            action: #selector(NSApplication.unhideAllApplications(_:)),
+            keyEquivalent: ""
+        )
+        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit Roobytes", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         let fileItem = NSMenuItem()
@@ -284,8 +302,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValid
     // MARK: - Actions
 
     @objc private func showAbout(_ sender: Any?) {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.2"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "4"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.3"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "5"
         let credits = NSAttributedString(
             string: "Native markdown notes · WYSIWYG · PT Mono · live Mem\nVersion \(version)",
             attributes: [
