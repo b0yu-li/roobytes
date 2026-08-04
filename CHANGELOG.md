@@ -8,6 +8,10 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.1.0
+
+- Visual mode y yank and d/x cut (characterwise put)
+
 ## 0.0.1
 
 - First release as **Roobytes**

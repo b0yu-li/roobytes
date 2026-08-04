@@ -805,6 +805,11 @@ do {
     T.check("help text has mD", VimHelp.text.contains("mD"))
     T.check("help text has :w", VimHelp.text.contains(":w"))
     T.check("help text has v Visual", VimHelp.text.contains("Visual"))
+    T.check("help text has Visual yank", VimHelp.text.contains("y yank"))
+    T.check("help text has Visual cut", VimHelp.text.contains("d/x cut"))
+    T.check("help Edit lists Visual y d x", VimHelp.sections.contains(where: {
+        $0.title == "Edit" && $0.rows.contains(where: { $0.keys == "y d x" })
+    }))
     T.check("help text has gj gk", VimHelp.text.contains("gj gk"))
     T.check("help notes wrapped rows", VimHelp.text.contains("wrapped row"))
     T.check(
@@ -831,6 +836,9 @@ do {
     T.check("tips has daily-note", RoobytesTips.all.contains(where: { $0.id == "daily-note" }))
     T.check("tips has lookup-k", RoobytesTips.all.contains(where: { $0.id == "lookup-k" }))
     T.check("tips has visual-select", RoobytesTips.all.contains(where: { $0.id == "visual-select" }))
+    T.check("tips visual mentions yank", RoobytesTips.all.contains(where: {
+        $0.id == "visual-select" && $0.body.contains("yanks")
+    }))
     T.check("tips folds mention folddone", RoobytesTips.all.contains(where: {
         $0.id == "folds" && $0.body.contains(":folddone")
     }))
@@ -868,6 +876,60 @@ do {
         VimVisual.selectionRange(anchor: 3, caret: 10, documentLength: 10),
         NSRange(location: 3, length: 7)
     )
+}
+
+// MARK: - Characterwise Visual slice / delete / insert
+
+do {
+    let a = MarkdownBridge.MarkdownCaret(line: 0, column: 1)
+    let b = MarkdownBridge.MarkdownCaret(line: 0, column: 3)
+    let lines = ["abcd", "ef", "ghij"]
+    T.eq("char slice same line", VimCharacterwise.slice(from: a, through: b, in: lines), "bcd")
+    T.eq(
+        "char slice multi",
+        VimCharacterwise.slice(
+            from: MarkdownBridge.MarkdownCaret(line: 0, column: 2),
+            through: MarkdownBridge.MarkdownCaret(line: 2, column: 1),
+            in: lines
+        ),
+        "cd\nef\ngh"
+    )
+
+    let deleted = VimCharacterwise.deleting(from: a, through: b, in: lines)
+    // Inclusive columns 1…3 of "abcd" remove "bcd".
+    T.eq("char delete same line", deleted.lines, ["a", "ef", "ghij"])
+    T.eq("char delete caret", deleted.caret, MarkdownBridge.MarkdownCaret(line: 0, column: 1))
+
+    let multiDel = VimCharacterwise.deleting(
+        from: MarkdownBridge.MarkdownCaret(line: 0, column: 2),
+        through: MarkdownBridge.MarkdownCaret(line: 2, column: 1),
+        in: lines
+    )
+    T.eq("char delete multi merge", multiDel.lines, ["abij"])
+    T.eq("char delete multi caret", multiDel.caret, MarkdownBridge.MarkdownCaret(line: 0, column: 2))
+    T.eq(
+        "char delete line range",
+        VimCharacterwise.deletedLineRange(
+            from: MarkdownBridge.MarkdownCaret(line: 0, column: 2),
+            through: MarkdownBridge.MarkdownCaret(line: 2, column: 1)
+        ),
+        1..<3
+    )
+
+    let inserted = VimCharacterwise.inserting(
+        "XY",
+        at: MarkdownBridge.MarkdownCaret(line: 0, column: 2),
+        in: ["abcd"]
+    )
+    T.eq("char insert same line", inserted.lines, ["abXYcd"])
+    T.eq("char insert caret start", inserted.caret, MarkdownBridge.MarkdownCaret(line: 0, column: 2))
+
+    let multiIns = VimCharacterwise.inserting(
+        "X\nY",
+        at: MarkdownBridge.MarkdownCaret(line: 0, column: 2),
+        in: ["abcd"]
+    )
+    T.eq("char insert multi", multiIns.lines, ["abX", "Ycd"])
 }
 
 // MARK: - Vertical motion: display rows vs logical lines

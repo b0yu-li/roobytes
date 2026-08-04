@@ -61,8 +61,10 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
     var vimVerticalGoalX: CGFloat?
     var vimVerticalGoalColumn: Int?
     var vimVerticalGoalAnchor: Int?
-    /// Linewise yank buffer for `dd` / `yy` / `p` / `P`.
+    /// Yank register for `dd` / `yy` / Visual `y`/`d` / `p` / `P`.
     var vimYankLines: String?
+    /// Whether `vimYankLines` was filled linewise (`dd`/`yy`) or characterwise (Visual `y`/`d`).
+    var vimYankKind: VimYankKind = .linewise
     /// Vim `:` command-line buffer (includes leading `:`).
     var vimCommandLine: String?
     let commandPalette = EditorCommandPalette()

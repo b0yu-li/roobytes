@@ -43,14 +43,17 @@ Roobytes is **Roobytes-flavored**, not a full Vim port — but Normal-mode bindi
 
 - **`v`** — enter characterwise Visual from Normal (toggle `v` / Esc leave)
 - Motions (`h/j/k/l`, `w/b/e`, `0/$`, `gg`/`G`, arrows, counts) extend an AppKit selection
+- **`y`** — characterwise yank of the selection (markdown source via caret mapping); leave Visual at selection start
+- **`d`** / **`x`** — characterwise cut (yank + delete); leave Visual at deletion start
 - Format with **⌘B** / **⌘I** (no vim bold/italic operators)
-- A persistent frosted `VISUAL · ⌘B bold · ⌘I italic · Esc` badge sits bottom-left; keep bottom-right free for chord hints
-- No linewise `V`, blockwise, or operator-pending on the range (yet)
+- A persistent frosted `VISUAL · y yank · d cut · ⌘B/⌘I · Esc` badge sits bottom-left; keep bottom-right free for chord hints
+- No linewise `V`, blockwise, or operator-pending motions on the range (yet)
 
 ## Yank / put
 
-- **`yy`** — content yank: strip list/task markers and a leading `tag: ` (e.g. `t: `). Fills pasteboard + `vimYankLines`.
-- **`dd`** — full source line cut (markers included).
+- **`yy`** — content yank: strip list/task markers and a leading `tag: ` (e.g. `t: `). Fills pasteboard + `vimYankLines` (linewise).
+- **`dd`** — full source line cut (markers included, linewise).
+- Visual **`y`** / **`d`** fill the same register as **characterwise**; `p`/`P` insert after/before the caret character.
 - **`yyp`** pastes body-only lines by design — not a bug.
 
 ## Tasks

@@ -23,7 +23,7 @@ public enum RoobytesTips {
         Tip(
             id: "visual-select",
             title: "Visual select",
-            body: "In Normal, press v then move (h/j/k/l, w/b/e) to select. ⌘B / ⌘I format the selection; Esc returns to Normal."
+            body: "In Normal, press v then move (h/j/k/l, w/b/e) to select. y yanks, d or x cuts; p / P put. ⌘B / ⌘I format; Esc returns to Normal."
         ),
         Tip(
             id: "cmd-palette",

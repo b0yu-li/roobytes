@@ -421,10 +421,7 @@ extension EditorViewController {
         let yanked = Array(lines[start..<end])
             .map { MarkdownBridge.yankableContent(of: $0) }
             .joined(separator: "\n")
-        vimYankLines = yanked
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(yanked, forType: .string)
+        storeVimYank(yanked, kind: .linewise, pasteboardTrailingNewline: false)
         refreshBlockCaret()
     }
 
@@ -439,10 +436,7 @@ extension EditorViewController {
         }
         let end = min(lines.count, start + max(1, count))
         let yanked = Array(lines[start..<end]).joined(separator: "\n")
-        vimYankLines = yanked
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(yanked + "\n", forType: .string)
+        storeVimYank(yanked, kind: .linewise, pasteboardTrailingNewline: true)
 
         shiftFoldsForDelete(start..<end)
         lines.removeSubrange(start..<end)
@@ -458,11 +452,67 @@ extension EditorViewController {
         delegate?.editorDidChangeText(self)
     }
 
-    /// Linewise put — `p` below caret line, `P` above.
+    /// Visual `y` — characterwise yank of the selection; leave Visual at the selection start.
+    func vimYankVisualSelection() {
+        clearVimPrefix()
+        guard vimMode == .visual,
+              let endpoints = visualMarkdownEndpoints()
+        else {
+            leaveVisualMode()
+            return
+        }
+        syncMarkdownFromView()
+        let yanked = VimCharacterwise.slice(
+            from: endpoints.lo,
+            through: endpoints.hi,
+            in: markdownLines
+        )
+        storeVimYank(yanked, kind: .characterwise, pasteboardTrailingNewline: false)
+        leaveVisualMode(at: endpoints.lo)
+    }
+
+    /// Visual `d` / `x` — characterwise cut of the selection; leave Visual at the deletion start.
+    func vimDeleteVisualSelection() {
+        clearVimPrefix()
+        guard vimMode == .visual,
+              let endpoints = visualMarkdownEndpoints()
+        else {
+            leaveVisualMode()
+            return
+        }
+        syncMarkdownFromView()
+        let lines = markdownLines
+        let yanked = VimCharacterwise.slice(
+            from: endpoints.lo,
+            through: endpoints.hi,
+            in: lines
+        )
+        storeVimYank(yanked, kind: .characterwise, pasteboardTrailingNewline: false)
+
+        if let removed = VimCharacterwise.deletedLineRange(from: endpoints.lo, through: endpoints.hi) {
+            shiftFoldsForDelete(removed)
+        }
+        let result = VimCharacterwise.deleting(
+            from: endpoints.lo,
+            through: endpoints.hi,
+            in: lines
+        )
+        markdownSource = result.lines.joined(separator: "\n")
+        leaveVisualMode(at: result.caret)
+        updateLineNumberGutter()
+        delegate?.editorDidChangeText(self)
+    }
+
+    /// Put — linewise (`dd`/`yy`) or characterwise (Visual `y`/`d`).
+    /// Linewise: `p` below caret line, `P` above. Characterwise: `p` after caret char, `P` before.
     func vimPut(after: Bool) {
         clearVimPrefix()
         guard let yanked = vimYankLines, !yanked.isEmpty else {
             refreshBlockCaret()
+            return
+        }
+        if vimYankKind == .characterwise {
+            vimPutCharacterwise(yanked, after: after)
             return
         }
         syncMarkdownFromView()
@@ -485,6 +535,71 @@ extension EditorViewController {
         refreshBlockCaret()
         updateLineNumberGutter()
         delegate?.editorDidChangeText(self)
+    }
+
+    private func vimPutCharacterwise(_ yanked: String, after: Bool) {
+        syncMarkdownFromView()
+        var caret = currentMarkdownCaret()
+        let lines = markdownLines
+        guard caret.line >= 0, caret.line < lines.count else {
+            refreshBlockCaret()
+            return
+        }
+        if after {
+            let ns = lines[caret.line] as NSString
+            if caret.column < ns.length {
+                caret.column += 1
+            }
+        }
+        let pieces = yanked.components(separatedBy: "\n")
+        if pieces.count > 1 {
+            shiftFoldsForInsert(count: pieces.count - 1, at: caret.line + 1)
+        }
+        let result = VimCharacterwise.inserting(yanked, at: caret, in: lines)
+        markdownSource = result.lines.joined(separator: "\n")
+        activeSourceLine = nil
+        liveRestyle(to: result.caret, animateScroll: false)
+        refreshBlockCaret()
+        updateLineNumberGutter()
+        delegate?.editorDidChangeText(self)
+    }
+
+    private func storeVimYank(
+        _ text: String,
+        kind: VimYankKind,
+        pasteboardTrailingNewline: Bool
+    ) {
+        vimYankLines = text
+        vimYankKind = kind
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        let paste = pasteboardTrailingNewline ? text + "\n" : text
+        pb.setString(paste, forType: .string)
+    }
+
+    private func visualMarkdownEndpoints() -> (
+        lo: MarkdownBridge.MarkdownCaret,
+        hi: MarkdownBridge.MarkdownCaret
+    )? {
+        guard let storage = textView.textStorage,
+              let anchor = visualAnchor,
+              let caret = visualCaret
+        else { return nil }
+        let a = MarkdownBridge.markdownCaret(
+            attributedLocation: anchor,
+            attributed: storage,
+            markdown: markdownSource,
+            activeSourceLine: activeSourceLine,
+            markdownLines: markdownLines
+        )
+        let b = MarkdownBridge.markdownCaret(
+            attributedLocation: caret,
+            attributed: storage,
+            markdown: markdownSource,
+            activeSourceLine: activeSourceLine,
+            markdownLines: markdownLines
+        )
+        return VimCharacterwise.ordered(a, b)
     }
 
     // MARK: - Nested list folds (`za` / `zc` / `zo`)

@@ -171,7 +171,7 @@ extension EditorViewController {
             return true
         }
 
-        // Visual: motions + Esc only. Operators / Insert entry are swallowed (thin Visual).
+        // Visual: motions + yank/cut + Esc. Insert entry / other operators are swallowed.
         if vimMode == .visual {
             return handleVimVisualKey(ch)
         }
@@ -411,7 +411,7 @@ extension EditorViewController {
             return true
         }
     }
-    /// Characterwise Visual key handling — motions extend selection; `v` / Esc leave.
+    /// Characterwise Visual key handling — motions extend selection; `y`/`d`/`x` operate; `v` / Esc leave.
     private func handleVimVisualKey(_ ch: Character) -> Bool {
         if let pending = pendingVimKey {
             hideVimChordHint()
@@ -443,6 +443,12 @@ extension EditorViewController {
         case "v":
             // Toggle off (vim).
             leaveVisualMode()
+            return true
+        case "y":
+            vimYankVisualSelection()
+            return true
+        case "d", "x":
+            vimDeleteVisualSelection()
             return true
         case "0":
             clearVimPrefix()
@@ -506,12 +512,31 @@ extension EditorViewController {
         }
     }
 
-    func leaveVisualMode() {
-        let caret = visualCaret ?? textView.selectedRange().location
+    func leaveVisualMode(at markdownCaret: MarkdownBridge.MarkdownCaret? = nil) {
+        let movingEnd = visualCaret ?? textView.selectedRange().location
         visualAnchor = nil
         visualCaret = nil
+        if let markdownCaret {
+            // Land on an explicit markdown caret without the Esc sync/restyle path.
+            endVimCommandLine()
+            hideWordCompletion()
+            clearVimPrefix()
+            clearCaretFeedback()
+            let changing = vimMode != .normal
+            vimMode = .normal
+            visualModeBadge.hide()
+            activeSourceLine = nil
+            liveRestyle(to: markdownCaret, animateScroll: false)
+            refreshBlockCaret()
+            textView.updateInsertionPointStateAndRestartTimer(true)
+            textView.setNeedsDisplay(textView.visibleRect)
+            if changing {
+                delegate?.editorDidChangeVimMode(self)
+            }
+            return
+        }
         isUpdatingBlockCaret = true
-        textView.setSelectedRange(NSRange(location: caret, length: 0))
+        textView.setSelectedRange(NSRange(location: movingEnd, length: 0))
         isUpdatingBlockCaret = false
         setVimMode(.normal)
     }

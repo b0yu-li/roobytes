@@ -108,7 +108,7 @@ final class VisualModeBadge {
         )
         result.append(
             NSAttributedString(
-                string: "  ·  ⌘B bold  ·  ⌘I italic  ·  Esc",
+                string: "  ·  y yank  ·  d cut  ·  ⌘B/⌘I  ·  Esc",
                 attributes: [
                     .font: RoobytesFont.regular(size: 12),
                     .foregroundColor: NSColor.labelColor,
