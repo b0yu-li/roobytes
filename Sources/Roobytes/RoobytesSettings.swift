@@ -80,9 +80,12 @@ final class RoobytesSettings {
         }
     }
 
-    /// When true, play soft sound effects (typing, motions, `:w`, task done). Default off.
+    /// When true, play soft sound effects (typing, motions, `:w`, task done). Default on.
     var typewriterSound: Bool {
-        get { defaults.bool(forKey: RoobytesDefaultsKey.typewriterSound) }
+        get {
+            if defaults.object(forKey: RoobytesDefaultsKey.typewriterSound) == nil { return true }
+            return defaults.bool(forKey: RoobytesDefaultsKey.typewriterSound)
+        }
         set { defaults.set(newValue, forKey: RoobytesDefaultsKey.typewriterSound) }
     }
 
@@ -107,10 +110,10 @@ final class RoobytesSettings {
         }
     }
 
-    /// When true (default), underline likely misspellings on the Insert-mode active line.
+    /// When true, underline likely misspellings on the Insert-mode active line. Default off.
     var spellChecking: Bool {
         get {
-            if defaults.object(forKey: RoobytesDefaultsKey.spellChecking) == nil { return true }
+            if defaults.object(forKey: RoobytesDefaultsKey.spellChecking) == nil { return false }
             return defaults.bool(forKey: RoobytesDefaultsKey.spellChecking)
         }
         set {

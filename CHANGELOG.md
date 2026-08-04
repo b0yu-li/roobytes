@@ -8,6 +8,10 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.1.2
+
+- Spell checking defaults off; sound effects default on
+
 ## 0.1.1
 
 - Skip Visual yank full restyle and serialize

@@ -83,7 +83,7 @@ public enum RoobytesTips {
         Tip(
             id: "sound",
             title: "Sound effects",
-            body: "Settings → Sound enables soft clicks for typing, motions, :w, and task-done."
+            body: "Soft clicks for typing, motions, :w, and task-done are on by default. Settings → Sound to toggle."
         ),
         Tip(
             id: "relative-gutter",
