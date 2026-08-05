@@ -277,12 +277,10 @@ do {
     T.eq("active rt col", backActive.column, midBody)
 }
 
-print("\ntask checkbox advance matches slug")
+print("\ntask checkbox cell (tight)")
 do {
-    let advance = MarkdownBridge.taskSlugMarkerAdvanceWidth()
     let cell = MarkdownBridge.taskCheckboxCellWidth()
-    T.check("cell ≥ slug advance", cell >= advance - 0.5, "cell=\(cell) advance=\(advance)")
-    T.check("cell ≥ square+min gap", cell >= 15 + 6, "cell=\(cell)")
+    T.eq("cell = square + gap", cell, 15 + 6)
 }
 
 // MARK: - Folds

@@ -973,22 +973,12 @@ public enum MarkdownBridge {
     private static func fixedLineHeight(for block: MDBlock) -> CGFloat {
         block == .task ? taskLineHeight : listLineHeight
     }
-    /// Minimum trailing pad after the square when the slug marker is narrower than expected.
+    /// Trailing transparent pad after the square (tighter than raw `+ [ ] ` — body may shift on Insert).
     private static let checkboxTrailingGap: CGFloat = 6
-    /// Raw open-task slug whose advance the collapsed checkbox must match (kills body jump on Insert).
-    private static let taskSlugMarkerSample = "+ [ ] "
 
-    /// Advance width of `"+ [ ] "` in the body mono font — checkbox attachment targets this.
-    public static func taskSlugMarkerAdvanceWidth(font: NSFont? = nil) -> CGFloat {
-        let f = font ?? RoobytesFont.regular(size: bodySize)
-        return ceil((taskSlugMarkerSample as NSString).size(withAttributes: [.font: f]).width)
-    }
-
-    /// Attachment cell width: square + pad so advance ≈ raw slug (never stretch the square).
-    public static func taskCheckboxCellWidth(font: NSFont? = nil) -> CGFloat {
-        let side = checkboxPointSize
-        let target = taskSlugMarkerAdvanceWidth(font: font)
-        return max(side + checkboxTrailingGap, target)
+    /// Attachment cell width: square + trailing gap (never stretch the square).
+    public static func taskCheckboxCellWidth() -> CGFloat {
+        checkboxPointSize + checkboxTrailingGap
     }
 
     private static func applyCompletedTaskStyle(
@@ -1008,14 +998,14 @@ public enum MarkdownBridge {
     ) -> NSAttributedString {
         let font = RoobytesFont.regular(size: bodySize)
         let side = checkboxPointSize
-        let cellWidth = taskCheckboxCellWidth(font: font)
+        let cellWidth = taskCheckboxCellWidth()
         let gap = cellWidth - side
 
         let cellImage = cachedCheckboxCellImage(state: state, side: side, gap: gap)
 
         let attachment = NSTextAttachment()
         attachment.image = cellImage
-        // Center the square in the font em-box; height == side (square); width pads to slug advance.
+        // Center the square in the font em-box; height == side (square); width = side + gap.
         let em = font.ascender - font.descender
         let y = font.descender + (em - side) / 2
         attachment.bounds = CGRect(x: 0, y: y, width: cellWidth, height: side)
