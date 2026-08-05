@@ -493,78 +493,108 @@ extension MarkdownBridge {
     // MARK: - Task caret helpers
 
     /// Whether the caret sits in the task marker (attachment / `+ [ ]`).
-    static func caretIsInTaskSlug(visibleParagraph: String, caretOffset: Int) -> Bool {
+    /// Offsets are UTF-16 (view / `NSString` columns). Indent-aware for raw lines.
+    public static func caretIsInTaskSlug(visibleParagraph: String, caretOffset: Int) -> Bool {
         guard caretOffset >= 0 else { return false }
-        let line = visibleParagraph
-        if line.hasPrefix("\u{FFFC}") {
+        let ns = visibleParagraph as NSString
+        if ns.hasPrefix("\u{FFFC}")
+            || ns.hasPrefix("☑") || ns.hasPrefix("☐") || ns.hasPrefix("☒") || ns.hasPrefix("▣")
+        {
             return caretOffset == 0
         }
-        if line.hasPrefix("☑") || line.hasPrefix("☐") || line.hasPrefix("☒") || line.hasPrefix("▣") {
-            return caretOffset == 0
-        }
-        if line.hasPrefix("+ [") || line.hasPrefix("- [") || line.hasPrefix("* [") {
-            if let bracket = line.firstIndex(of: "]") {
-                let end = line.distance(from: line.startIndex, to: bracket) + 1
-                return caretOffset < end
-            }
-        }
-        return false
+        guard let slugEnd = taskSlugEndOffset(in: visibleParagraph) else { return false }
+        return caretOffset < slugEnd
     }
 
-    /// Snap caret out of the whitespace gap between slug and body (avoids "left jump" stops).
-    static func snapTaskCaretOffset(in paragraph: String, offset: Int) -> Int? {
+    /// Snap caret out of the whitespace gap between slug and body.
+    /// Gap → body start (forward) so ← from the body does not jump into `[ ]`.
+    public static func snapTaskCaretOffset(in paragraph: String, offset: Int) -> Int? {
         guard let bodyStart = taskBodyStartOffset(in: paragraph), offset < bodyStart else { return nil }
         guard let slugEnd = taskSlugEndOffset(in: paragraph), offset > slugEnd else { return nil }
-        return taskSlugInteriorOffset(in: paragraph)
+        return bodyStart
     }
 
-    /// First character index of task body text (after marker / slug).
-    static func taskBodyStartOffset(in paragraph: String) -> Int? {
-        if paragraph.hasPrefix("\u{FFFC}") {
-            return paragraph.count > 1 ? 1 : nil
+    /// First UTF-16 index of task body text (after marker / slug). Indent-aware.
+    public static func taskBodyStartOffset(in paragraph: String) -> Int? {
+        let ns = paragraph as NSString
+        if ns.hasPrefix("\u{FFFC}") {
+            return ns.length > 1 ? 1 : nil
         }
-        if paragraph.hasPrefix("☑") || paragraph.hasPrefix("☐") || paragraph.hasPrefix("☒") || paragraph.hasPrefix("▣") {
+        if ns.hasPrefix("☑") || ns.hasPrefix("☐") || ns.hasPrefix("☒") || ns.hasPrefix("▣") {
             var i = 1
-            while i < paragraph.count {
-                let idx = paragraph.index(paragraph.startIndex, offsetBy: i)
-                if paragraph[idx] != " " { return i }
+            while i < ns.length {
+                if ns.character(at: i) != 32 { return i }
                 i += 1
             }
             return nil
         }
-        if paragraph.hasPrefix("+ [") || paragraph.hasPrefix("- [") || paragraph.hasPrefix("* [") {
-            guard let bracket = paragraph.firstIndex(of: "]") else { return nil }
-            var i = paragraph.distance(from: paragraph.startIndex, to: bracket) + 1
-            while i < paragraph.count {
-                let idx = paragraph.index(paragraph.startIndex, offsetBy: i)
-                if paragraph[idx] != " " { return i }
-                i += 1
-            }
+        let (_, rest) = splitIndent(paragraph)
+        let indentLen = ns.length - (rest as NSString).length
+        let restNS = rest as NSString
+        guard restNS.hasPrefix("+ [") || restNS.hasPrefix("- [") || restNS.hasPrefix("* [") else {
             return nil
+        }
+        guard let bracket = rest.firstIndex(of: "]") else { return nil }
+        var i = rest.distance(from: rest.startIndex, to: bracket) + 1
+        while i < restNS.length {
+            if restNS.character(at: i) != 32 { return indentLen + i }
+            i += 1
         }
         return nil
     }
 
-    /// Index immediately after the `]` in an expanded slug line.
-    private static func taskSlugEndOffset(in paragraph: String) -> Int? {
-        guard paragraph.hasPrefix("+ [") || paragraph.hasPrefix("- [") || paragraph.hasPrefix("* [") else { return nil }
-        guard let bracket = paragraph.firstIndex(of: "]") else { return nil }
-        return paragraph.distance(from: paragraph.startIndex, to: bracket) + 1
-    }
-
-    /// Preferred caret when entering slug edit from the task body (inside `[ ]`).
-    static func taskSlugInteriorOffset(in paragraph: String) -> Int {
-        if let open = paragraph.firstIndex(of: "[") {
-            let afterOpen = paragraph.index(after: open)
-            if afterOpen < paragraph.endIndex, paragraph[afterOpen] == " " {
-                return paragraph.distance(from: paragraph.startIndex, to: afterOpen)
-            }
-            return paragraph.distance(from: paragraph.startIndex, to: afterOpen)
+    /// UTF-16 index immediately after the `]` in an expanded slug line (indent-aware).
+    public static func taskSlugEndOffset(in paragraph: String) -> Int? {
+        let ns = paragraph as NSString
+        let (_, rest) = splitIndent(paragraph)
+        let indentLen = ns.length - (rest as NSString).length
+        let restNS = rest as NSString
+        guard restNS.hasPrefix("+ [") || restNS.hasPrefix("- [") || restNS.hasPrefix("* [") else {
+            return nil
         }
-        return 0
+        guard let bracket = rest.firstIndex(of: "]") else { return nil }
+        return indentLen + rest.distance(from: rest.startIndex, to: bracket) + 1
     }
 
-    /// Caret after expanding slug or collapsing back to checkbox + body.
+    /// Preferred caret when entering slug edit (inside `[ ]`). UTF-16, indent-aware.
+    public static func taskSlugInteriorOffset(in paragraph: String) -> Int {
+        let ns = paragraph as NSString
+        let (_, rest) = splitIndent(paragraph)
+        let indentLen = ns.length - (rest as NSString).length
+        let restNS = rest as NSString
+        let openRange = restNS.range(of: "[")
+        guard openRange.location != NSNotFound else { return indentLen }
+        let afterOpen = openRange.location + 1
+        if afterOpen < restNS.length, restNS.character(at: afterOpen) == 32 {
+            return indentLen + afterOpen
+        }
+        return indentLen + afterOpen
+    }
+
+    /// Adjust a markdown column when expanding (checkbox → raw slug) or collapsing (raw → checkbox).
+    /// Slug-range columns snap to a stable landing; body columns are preserved.
+    public static func markdownColumnAfterTaskSlugToggle(
+        markdownLine: String,
+        column: Int,
+        expanding: Bool
+    ) -> Int {
+        let ns = markdownLine as NSString
+        let col = max(0, min(column, ns.length))
+        let bodyStart = contentStartColumn(in: markdownLine)
+        let (_, rest) = splitIndent(markdownLine)
+        let restNS = rest as NSString
+        guard restNS.hasPrefix("+ [") || restNS.hasPrefix("- [") || restNS.hasPrefix("* [") else {
+            return col
+        }
+        // Slug / marker range: before body start (includes indent + `+ [ ] `).
+        guard col < bodyStart else { return col }
+        if expanding {
+            return taskSlugInteriorOffset(in: markdownLine)
+        }
+        return bodyStart
+    }
+
+    /// Visible caret after expanding slug or collapsing back to checkbox + body.
     static func taskCaretAfterSlugToggle(
         paragraph: String,
         expanding: Bool

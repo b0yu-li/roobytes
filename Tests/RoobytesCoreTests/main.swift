@@ -192,6 +192,99 @@ T.eq("numeric slug", MarkdownBridge.yankableContent(of: "+ [!] 2518: fix caret j
 T.eq("url kept", MarkdownBridge.yankableContent(of: "+ [ ] https://example.com"), "https://example.com")
 T.eq("empty body", MarkdownBridge.yankableContent(of: "+ [ ] "), "")
 
+print("\ntask slug caret helpers")
+do {
+    let line = "+ [ ] hello"
+    // `+ [ ] hello` — slugEnd after `]` (5), bodyStart at `h` (6); multi-space gap snaps forward.
+    let gappy = "+ [ ]  hello"
+    T.eq("slug end", MarkdownBridge.taskSlugEndOffset(in: line), 5)
+    T.eq("body start", MarkdownBridge.taskBodyStartOffset(in: line), 6)
+    T.eq("slug interior", MarkdownBridge.taskSlugInteriorOffset(in: line), 3)
+    T.eq(
+        "gap snaps to body",
+        MarkdownBridge.snapTaskCaretOffset(in: gappy, offset: 6),
+        7
+    )
+    T.eq(
+        "no snap at body",
+        MarkdownBridge.snapTaskCaretOffset(in: line, offset: 6),
+        Optional<Int>.none
+    )
+    T.eq(
+        "no snap in slug",
+        MarkdownBridge.snapTaskCaretOffset(in: line, offset: 3),
+        Optional<Int>.none
+    )
+
+    let indented = "  + [ ] nest"
+    T.eq("indented slug end", MarkdownBridge.taskSlugEndOffset(in: indented), 7)
+    T.eq("indented body start", MarkdownBridge.taskBodyStartOffset(in: indented), 8)
+    T.eq("indented slug interior", MarkdownBridge.taskSlugInteriorOffset(in: indented), 5)
+    T.eq(
+        "indented gap snap",
+        MarkdownBridge.snapTaskCaretOffset(in: "  + [ ]  nest", offset: 8),
+        9
+    )
+    T.check("caret in slug", MarkdownBridge.caretIsInTaskSlug(visibleParagraph: line, caretOffset: 3))
+    T.check("caret not in body", !MarkdownBridge.caretIsInTaskSlug(visibleParagraph: line, caretOffset: 6))
+    T.check(
+        "indented caret in slug",
+        MarkdownBridge.caretIsInTaskSlug(visibleParagraph: indented, caretOffset: 5)
+    )
+
+    T.eq(
+        "expand slug col → interior",
+        MarkdownBridge.markdownColumnAfterTaskSlugToggle(markdownLine: line, column: 1, expanding: true),
+        3
+    )
+    T.eq(
+        "expand body col preserved",
+        MarkdownBridge.markdownColumnAfterTaskSlugToggle(markdownLine: line, column: 8, expanding: true),
+        8
+    )
+    T.eq(
+        "collapse slug col → body",
+        MarkdownBridge.markdownColumnAfterTaskSlugToggle(markdownLine: line, column: 3, expanding: false),
+        6
+    )
+    T.eq(
+        "collapse body col preserved",
+        MarkdownBridge.markdownColumnAfterTaskSlugToggle(markdownLine: line, column: 8, expanding: false),
+        8
+    )
+    T.eq(
+        "expand indented slug",
+        MarkdownBridge.markdownColumnAfterTaskSlugToggle(markdownLine: indented, column: 2, expanding: true),
+        5
+    )
+}
+
+print("\ntask checkbox ↔ markdown caret round-trip")
+do {
+    let md = "+ [ ] wh-os: deploy\nplain\n"
+    let bodyStart = MarkdownBridge.contentStartColumn(in: "+ [ ] wh-os: deploy")
+    let midBody = bodyStart + 3
+    for col in [bodyStart, midBody] {
+        let a = styled(md, active: nil)
+        let location = loc(line: 0, column: col, in: a, markdown: md, active: nil)
+        let back = caret(at: location, in: a, markdown: md, active: nil)
+        T.eq("decorated rt col \(col)", back.column, col)
+        T.eq("decorated rt line \(col)", back.line, 0)
+    }
+    let active = styled(md, active: 0)
+    let locActive = loc(line: 0, column: midBody, in: active, markdown: md, active: 0)
+    let backActive = caret(at: locActive, in: active, markdown: md, active: 0)
+    T.eq("active rt col", backActive.column, midBody)
+}
+
+print("\ntask checkbox advance matches slug")
+do {
+    let advance = MarkdownBridge.taskSlugMarkerAdvanceWidth()
+    let cell = MarkdownBridge.taskCheckboxCellWidth()
+    T.check("cell ≥ slug advance", cell >= advance - 0.5, "cell=\(cell) advance=\(advance)")
+    T.check("cell ≥ square+min gap", cell >= 15 + 6, "cell=\(cell)")
+}
+
 // MARK: - Folds
 
 print("\nNested list folds")

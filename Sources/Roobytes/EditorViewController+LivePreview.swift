@@ -112,10 +112,19 @@ extension EditorViewController {
 
         // Map caret from the (possibly decorated) destination line → markdown column
         // while activeSourceLine is still the previous value.
-        let caretBefore = currentMarkdownCaret()
+        var caretBefore = currentMarkdownCaret()
+        let lines = markdownLines
+        if lineIdx >= 0, lineIdx < lines.count {
+            caretBefore.column = MarkdownBridge.markdownColumnAfterTaskSlugToggle(
+                markdownLine: lines[lineIdx],
+                column: caretBefore.column,
+                expanding: true
+            )
+        }
         activeSourceLine = lineIdx
         let target = MarkdownBridge.MarkdownCaret(line: lineIdx, column: caretBefore.column)
         liveRestyle(to: target, replacingOnly: [previous, lineIdx].compactMap { $0 })
+        snapTaskLineCaretIfNeeded()
     }
 
     func snapTaskLineCaretIfNeeded() {
@@ -282,6 +291,7 @@ extension EditorViewController {
         isSnappingCaret = true
         textView.setSelectedRange(NSRange(location: loc, length: 0))
         isSnappingCaret = false
+        snapTaskLineCaretIfNeeded()
 
         clip.scroll(to: scrollBefore)
         scrollView.reflectScrolledClipView(clip)
@@ -343,6 +353,7 @@ extension EditorViewController {
         isSnappingCaret = true
         textView.setSelectedRange(NSRange(location: loc, length: 0))
         isSnappingCaret = false
+        snapTaskLineCaretIfNeeded()
 
         clip.scroll(to: scrollBefore)
         scrollView.reflectScrolledClipView(clip)

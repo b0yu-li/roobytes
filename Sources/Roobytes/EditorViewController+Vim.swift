@@ -721,8 +721,18 @@ extension EditorViewController {
         pendingVimKey = nil
         autoUnfoldForInsert(around: caret.line)
 
-        activeSourceLine = caret.line
-        liveRestyle(to: caret, animateScroll: false)
+        var adjusted = caret
+        let lines = markdownLines
+        if adjusted.line >= 0, adjusted.line < lines.count {
+            adjusted.column = MarkdownBridge.markdownColumnAfterTaskSlugToggle(
+                markdownLine: lines[adjusted.line],
+                column: adjusted.column,
+                expanding: true
+            )
+        }
+        activeSourceLine = adjusted.line
+        liveRestyle(to: adjusted, animateScroll: false)
+        snapTaskLineCaretIfNeeded()
 
         textView.updateInsertionPointStateAndRestartTimer(true)
         textView.setNeedsDisplay(textView.visibleRect)
@@ -781,7 +791,15 @@ extension EditorViewController {
                 }
             }
             // Backspace-join may move `activeSourceLine` to the previous line during sync.
-            let caret = currentMarkdownCaret()
+            var caret = currentMarkdownCaret()
+            let lines = markdownLines
+            if caret.line >= 0, caret.line < lines.count {
+                caret.column = MarkdownBridge.markdownColumnAfterTaskSlugToggle(
+                    markdownLine: lines[caret.line],
+                    column: caret.column,
+                    expanding: false
+                )
+            }
             activeSourceLine = nil
             collapseSelectionToCaret()
             // Always full-document restyle on Esc. Incremental replace indexes view
@@ -791,15 +809,24 @@ extension EditorViewController {
         } else if newMode == .insert {
             // Insert: reveal the caret line as raw markdown (Live Preview edit).
             collapseSelectionToCaret()
-            let caret = currentMarkdownCaret()
+            var caret = currentMarkdownCaret()
             autoUnfoldForInsert(around: caret.line)
             let previous = activeSourceLine
+            let lines = markdownLines
+            if caret.line >= 0, caret.line < lines.count {
+                caret.column = MarkdownBridge.markdownColumnAfterTaskSlugToggle(
+                    markdownLine: lines[caret.line],
+                    column: caret.column,
+                    expanding: true
+                )
+            }
             activeSourceLine = caret.line
             liveRestyle(
                 to: caret,
                 animateScroll: false,
                 replacingOnly: [previous, caret.line].compactMap { $0 }
             )
+            snapTaskLineCaretIfNeeded()
             textView.updateInsertionPointStateAndRestartTimer(true)
         }
         // `.visual` is entered via `enterVisualMode()` (keeps selection state).

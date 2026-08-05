@@ -8,6 +8,10 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.2.2
+
+- Fix task slug caret jumps and checkbox body shift on Insert
+
 ## 0.2.1
 
 - yy strips hyphenated and numeric leading tags (wh-os:, 2518:)
