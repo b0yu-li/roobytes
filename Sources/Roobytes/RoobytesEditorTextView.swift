@@ -178,9 +178,9 @@ final class RoobytesEditorTextView: NSTextView {
             return
         }
 
-        // `shouldDrawInsertionPoint` keeps the caret painted between blink ticks
-        // while focused, and still lets an unfocused view erase it.
-        let on = flag || shouldDrawInsertionPoint
+        // Steady while focused — ignore blink `flag`. A blinking full-height rect behind
+        // an opaque checkbox attachment reads as gold caps above/below the glyph.
+        let on = shouldDrawInsertionPoint
         let pending = vimHost?.pendingVimKey != nil
 
         if pending {
@@ -202,8 +202,26 @@ final class RoobytesEditorTextView: NSTextView {
 
         if let square = checkboxSquareRect(at: selectedRange().location) {
             let ring = square.insetBy(dx: -1, dy: -1)
-            blockCaretDirtyRect = ring.insetBy(dx: -2, dy: -2)
+            // AppKit's `rect` is the full line box; keep dirty union so blink-off erases caps.
+            blockCaretDirtyRect = rect.union(ring.insetBy(dx: -2, dy: -2))
             if on {
+                // Wipe tall caret residue above/below the square (attachment masks the middle).
+                let bg = backgroundColor
+                let above = NSRect(
+                    x: rect.minX,
+                    y: rect.minY,
+                    width: max(rect.width, ring.width),
+                    height: max(0, square.minY - rect.minY)
+                )
+                let below = NSRect(
+                    x: rect.minX,
+                    y: square.maxY,
+                    width: max(rect.width, ring.width),
+                    height: max(0, rect.maxY - square.maxY)
+                )
+                bg.setFill()
+                if above.height > 0.5 { above.fill() }
+                if below.height > 0.5 { below.fill() }
                 let path = NSBezierPath(roundedRect: ring, xRadius: 4.5, yRadius: 4.5)
                 path.lineWidth = 1.5
                 RoobytesAccent.caret.setStroke()

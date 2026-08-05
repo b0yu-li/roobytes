@@ -33,11 +33,11 @@ Roobytes is **Roobytes-flavored**, not a full Vim port — but Normal-mode bindi
 
 ## Caret (do not reintroduce blink)
 
-- **Normal / Visual are steady; only Insert blinks.** `RoobytesEditorTextView.updateInsertionPointStateAndRestartTimer` forces `false` outside Insert.
+- **Normal / Visual are steady; only Insert blinks.** `RoobytesEditorTextView.updateInsertionPointStateAndRestartTimer` forces `false` outside Insert; `drawInsertionPoint` ignores blink `flag` in Normal and keys only on `shouldDrawInsertionPoint` (avoids gold caps above/below a checkbox when a tall caret flashes behind the opaque attachment).
 - **Color role:** all “you are here” feedback uses `RoobytesAccent.caret` (the preset’s supplementary/bright companion): Normal block selection, Insert caret, pending underscore, checkbox ring, jump feedback, and titlebar mode dot. Task fills, focus wash, and pins stay on primary `RoobytesAccent.color`.
 - Over a character the Normal caret is **not** an insertion point — it is a one-character selection (`refreshBlockCaret` + `RoobytesAccent.selectionAttributes`) so wide/CJK glyphs and checkbox attachments get exact width and a white glyph. Selections never blink.
-- `drawInsertionPoint` only paints the block/underscore at EOL, blank lines, and EOF (selection length 0). Gate it on `flag || shouldDrawInsertionPoint` so an unfocused view still erases.
-- **Task checkbox** — never select or fill it: `taskDoneFill` / `[!]` use the same accent as the selection paint, so a block there reads as one flat slab. `refreshBlockCaret` collapses on an `.attachment`, and `drawInsertionPoint` strokes a rounded ring around `checkboxSquareRect` (baseline-derived, excludes `checkboxTrailingGap`).
+- `drawInsertionPoint` only paints the block/underscore at EOL, blank lines, and EOF (selection length 0). Gate it on `shouldDrawInsertionPoint` so an unfocused view still erases.
+- **Task checkbox** — never select or fill it: `taskDoneFill` / `[!]` use the same accent as the selection paint, so a block there reads as one flat slab. `refreshBlockCaret` collapses on an `.attachment`, and `drawInsertionPoint` strokes a rounded ring around `checkboxSquareRect` (baseline-derived, excludes `checkboxTrailingGap`), wiping AppKit’s tall insertion-point residue above/below the square.
 
 ## Visual (thin characterwise)
 

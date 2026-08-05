@@ -8,6 +8,14 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.3.4
+
+- Steady checkbox caret ring; stop gold blink caps masked by attachment
+
+## 0.3.3
+
+- Steady checkbox caret ring; stop gold blink caps masked by attachment
+
 ## 0.3.2
 
 - Tighter task checkbox gap (accept body shift on Insert)

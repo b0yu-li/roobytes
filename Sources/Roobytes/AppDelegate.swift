@@ -307,8 +307,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValid
     // MARK: - Actions
 
     @objc private func showAbout(_ sender: Any?) {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.3.2"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "12"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.3.4"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "14"
         let credits = NSAttributedString(
             string: "Native markdown notes · WYSIWYG · PT Mono · live Mem\nVersion \(version)",
             attributes: [
