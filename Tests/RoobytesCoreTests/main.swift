@@ -187,6 +187,8 @@ T.eq(
 T.eq("bullet plain", MarkdownBridge.yankableContent(of: "  - plain item"), "plain item")
 T.eq("plain line", MarkdownBridge.yankableContent(of: "hello"), "hello")
 T.eq("app tag", MarkdownBridge.yankableContent(of: "+ [x] app: Roobytes"), "Roobytes")
+T.eq("hyphen slug", MarkdownBridge.yankableContent(of: "+ [ ] wh-os: deploy notes"), "deploy notes")
+T.eq("numeric slug", MarkdownBridge.yankableContent(of: "+ [!] 2518: fix caret jump"), "fix caret jump")
 T.eq("url kept", MarkdownBridge.yankableContent(of: "+ [ ] https://example.com"), "https://example.com")
 T.eq("empty body", MarkdownBridge.yankableContent(of: "+ [ ] "), "")
 

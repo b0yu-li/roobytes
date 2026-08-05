@@ -8,6 +8,10 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.2.1
+
+- yy strips hyphenated and numeric leading tags (wh-os:, 2518:)
+
 ## 0.2.0
 
 - Daily notes template setup from :daily and Settings

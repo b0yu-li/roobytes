@@ -52,7 +52,7 @@ Roobytes is **Roobytes-flavored**, not a full Vim port — but Normal-mode bindi
 
 ## Yank / put
 
-- **`yy`** — content yank: strip list/task markers and a leading `tag: ` (e.g. `t: `). Fills pasteboard + `vimYankLines` (linewise).
+- **`yy`** — content yank: strip list/task markers and a leading `tag: ` (letters, digits, hyphens; e.g. `t:`, `wh-os:`, `2518:`). Fills pasteboard + `vimYankLines` (linewise).
 - **`dd`** — full source line cut (markers included, linewise).
 - Visual **`y`** / **`d`** fill the same register as **characterwise**; `p`/`P` insert after/before the caret character.
 - **`yyp`** pastes body-only lines by design — not a bug.

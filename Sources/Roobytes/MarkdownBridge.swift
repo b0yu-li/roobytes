@@ -526,14 +526,16 @@ public enum MarkdownBridge {
         return indentLen
     }
 
-    /// Body text for Roobytes-flavored `yy`: drop list/task markers, then one leading `tag: ` (1–8 letters).
+    /// Body text for Roobytes-flavored `yy`: drop list/task markers, then one leading `tag: `
+    /// (1–16 alphanumerics / hyphens, e.g. `t:`, `wh-os:`, `2518:`).
     /// Leaves `https://…` alone (no space after `:`).
     public static func yankableContent(of line: String) -> String {
         let start = contentStartColumn(in: line)
         let ns = line as NSString
         guard start >= 0, start <= ns.length else { return "" }
         var body = ns.substring(from: start)
-        if let range = body.range(of: #"^[A-Za-z]{1,8}:\s+"#, options: .regularExpression) {
+        // First char alnum; rest alnum/hyphen up to 16 total. Require space after `:` (not URLs).
+        if let range = body.range(of: #"^[A-Za-z0-9][A-Za-z0-9-]{0,15}:\s+"#, options: .regularExpression) {
             body.removeSubrange(range)
         }
         return body
