@@ -131,24 +131,18 @@ extension EditorViewController {
             onExtraFragment: startsOnExtraFragment
         )
 
-        var landedOnExtraFragment = false
         var moved = 0
         for _ in 0..<abs(delta) {
             if delta > 0 {
                 let next = NSMaxRange(fragmentGlyphs)
-                guard next < glyphCount else {
-                    if !startsOnExtraFragment, layoutManager.extraLineFragmentTextContainer != nil {
-                        landedOnExtraFragment = true
-                        moved += 1
-                    }
-                    break
-                }
+                // Do not step onto AppKit's glyph-less `extraLineFragment` (trailing empty
+                // after a final newline) — it has no gutter number and is not a real line.
+                guard next < glyphCount else { break }
                 fragment = layoutManager.lineFragmentRect(forGlyphAt: next, effectiveRange: &fragmentGlyphs)
             } else {
                 let previous = fragmentGlyphs.location - 1
                 guard previous >= 0 else { break }
                 fragment = layoutManager.lineFragmentRect(forGlyphAt: previous, effectiveRange: &fragmentGlyphs)
-                landedOnExtraFragment = false
             }
             moved += 1
         }
@@ -159,17 +153,12 @@ extension EditorViewController {
             return true
         }
 
-        let target: Int
-        if landedOnExtraFragment {
-            target = ns.length
-        } else {
-            var fraction: CGFloat = 0
-            target = layoutManager.characterIndex(
-                for: NSPoint(x: goalX, y: fragment.midY),
-                in: container,
-                fractionOfDistanceBetweenInsertionPoints: &fraction
-            )
-        }
+        var fraction: CGFloat = 0
+        let target = layoutManager.characterIndex(
+            for: NSPoint(x: goalX, y: fragment.midY),
+            in: container,
+            fractionOfDistanceBetweenInsertionPoints: &fraction
+        )
         vimMoveCaret(to: target)
         rememberVerticalGoal(x: goalX, at: currentVimCaretLocation())
         return true
@@ -288,7 +277,14 @@ extension EditorViewController {
     private func vimMoveCaret(to location: Int) {
         let from = currentVimCaretLocation()
         let nsLen = (textView.string as NSString).length
-        let to = max(0, min(location, nsLen))
+        var to = max(0, min(location, nsLen))
+        // Normal: never rest on the glyph-less trailing empty line after a final `\n`.
+        if vimMode == .normal, let storage = textView.textStorage {
+            to = MarkdownBridge.caretLocationClampedOffTrailingEmpty(
+                caretLocation: to,
+                in: storage
+            )
+        }
         guard to != from else {
             if vimMode == .visual {
                 applyVisualSelection()
@@ -397,9 +393,6 @@ extension EditorViewController {
         let lines = markdownLines
         guard !lines.isEmpty else { return }
         refreshSourceLineParagraphIndexIfNeeded()
-        let lineIdx = top ? 0 : lines.count - 1
-        let col = Self.firstNonBlankColumn(in: lines[lineIdx])
-        let target = MarkdownBridge.MarkdownCaret(line: lineIdx, column: col)
 
         let attributed: NSAttributedString
         if let storage = textView.textStorage {
@@ -407,6 +400,12 @@ extension EditorViewController {
         } else {
             attributed = NSAttributedString(string: textView.string)
         }
+
+        let lineIdx = top
+            ? 0
+            : MarkdownBridge.lastNavigableMarkdownLineIndex(in: lines, attributed: attributed)
+        let col = Self.firstNonBlankColumn(in: lines[lineIdx])
+        let target = MarkdownBridge.MarkdownCaret(line: lineIdx, column: col)
         let loc = MarkdownBridge.attributedLocation(
             for: target,
             attributed: attributed,
@@ -508,14 +507,23 @@ extension EditorViewController {
         isUpdatingBlockCaret = true
         defer { isUpdatingBlockCaret = false }
 
-        let sel = textView.selectedRange()
-        let loc = sel.location
+        var sel = textView.selectedRange()
         let ns = textView.string as NSString
 
-        if loc >= ns.length {
-            if sel.length != 0 {
-                textView.setSelectedRange(NSRange(location: ns.length, length: 0))
+        // Clamp off AppKit's trailing empty extra-line (no gutter, not editable in Normal).
+        if let storage = textView.textStorage {
+            let clamped = MarkdownBridge.caretLocationClampedOffTrailingEmpty(
+                caretLocation: sel.location,
+                in: storage
+            )
+            if clamped != sel.location {
+                sel = NSRange(location: clamped, length: 0)
+                textView.setSelectedRange(sel)
             }
+        }
+
+        let loc = sel.location
+        if loc >= ns.length {
             textView.updateInsertionPointStateAndRestartTimer(true)
             return
         }

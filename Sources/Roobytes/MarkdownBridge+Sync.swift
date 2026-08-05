@@ -6,6 +6,9 @@ extension MarkdownBridge {
     /// An empty **last** markdown line owns no characters in the view: the separator newline is
     /// tagged with the *previous* visible line, so the final paragraph is character-less and
     /// carries no `mdSourceLine`. True when `caret` sits in that paragraph.
+    ///
+    /// AppKit draws this as `extraLineFragment` (no glyphs, no gutter number) — Normal-mode
+    /// caret must not rest there (see `caretLocationClampedOffTrailingEmpty`).
     public static func caretInTrailingEmptyParagraph(
         caretLocation caret: Int,
         in attributed: NSAttributedString
@@ -13,6 +16,48 @@ extension MarkdownBridge {
         let ns = attributed.string as NSString
         guard ns.length > 0, caret >= ns.length else { return false }
         return ns.character(at: ns.length - 1) == 10 // '\n'
+    }
+
+    /// When `caret` is in the character-less trailing empty paragraph, return the first
+    /// non-blank column of the previous (last real) paragraph; otherwise `caret` unchanged.
+    public static func caretLocationClampedOffTrailingEmpty(
+        caretLocation caret: Int,
+        in attributed: NSAttributedString
+    ) -> Int {
+        guard caretInTrailingEmptyParagraph(caretLocation: caret, in: attributed) else {
+            return caret
+        }
+        let ns = attributed.string as NSString
+        guard ns.length > 0 else { return 0 }
+        var start = 0
+        var end = 0
+        var contentsEnd = 0
+        ns.getParagraphStart(
+            &start,
+            end: &end,
+            contentsEnd: &contentsEnd,
+            for: NSRange(location: ns.length - 1, length: 0)
+        )
+        let para = ns.substring(with: NSRange(location: start, length: max(0, contentsEnd - start)))
+        let col = contentStartColumn(in: para)
+        return start + min(col, max(0, contentsEnd - start))
+    }
+
+    /// Last markdown line `G` / document-end should land on. Skips a trailing `""` that has no
+    /// view paragraph (POSIX final newline / character-less empty last line).
+    public static func lastNavigableMarkdownLineIndex(
+        in lines: [String],
+        attributed: NSAttributedString
+    ) -> Int {
+        guard !lines.isEmpty else { return 0 }
+        var idx = lines.count - 1
+        while idx > 0,
+              lines[idx].isEmpty,
+              visibleParagraphStart(forSourceLine: idx, in: attributed) == nil
+        {
+            idx -= 1
+        }
+        return idx
     }
 
     /// `mdSourceLine` of the paragraph holding `caret`, or `nil` when it cannot be resolved.

@@ -28,7 +28,7 @@ Roobytes is **Roobytes-flavored**, not a full Vim port — but Normal-mode bindi
 ## Vertical motion (`j` / `k`)
 
 - **Bare `j`/`k` walk display rows** (wrapped paragraphs are reachable); **a count keeps logical lines** — `LineNumberGutterView` draws one hybrid relative number per logical line and labels the colors `j` / `k`, so `5j` must land on the row labelled `5`. Policy lives in `VimVerticalMotion.usesDisplayRows`; `gj`/`gk` force rows.
-- Display rows walk `NSLayoutManager` line fragments. The trailing empty line after a final newline owns **no glyphs** — handle it via `extraLineFragmentTextContainer` / `extraLineFragmentRect` or `j` can never reach EOF.
+- Display rows walk `NSLayoutManager` line fragments. The trailing empty line after a final newline owns **no glyphs** (`extraLineFragment`) — **do not** land Normal-mode `j` / caret there (clamp via `caretLocationClampedOffTrailingEmpty`; `LineIndexCache` omits the phantom start at `length`). Insert may still edit that paragraph after `o`.
 - Both paths keep a **sticky goal** (`vimVerticalGoalX` / `vimVerticalGoalColumn`) so passing a short line does not truncate the column. It is validated by `vimVerticalGoalAnchor` (the caret location the last vertical motion produced), so any other motion or edit drops it automatically — do not add manual invalidation to each motion.
 
 ## Caret (do not reintroduce blink)

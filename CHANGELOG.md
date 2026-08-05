@@ -8,6 +8,10 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.3.1
+
+- Clamp Normal caret off glyph-less trailing empty line after final newline
+
 ## 0.3.0
 
 - Speed up ⌘P on large vaults (cache, result cap, debounce)

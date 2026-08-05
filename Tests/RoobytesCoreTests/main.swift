@@ -658,6 +658,59 @@ do {
     )
 }
 
+do {
+    // Normal-mode caret must not rest on the glyph-less trailing empty after a final `\n`.
+    let md = "# Focus\n+ [ ] task\n"
+    let attr = styled(md, active: nil)
+    let eof = attr.length
+    T.check(
+        "sample ends in trailing empty paragraph",
+        MarkdownBridge.caretInTrailingEmptyParagraph(caretLocation: eof, in: attr)
+    )
+    let clamped = MarkdownBridge.caretLocationClampedOffTrailingEmpty(
+        caretLocation: eof,
+        in: attr
+    )
+    T.check("clamp leaves trailing empty", clamped < eof)
+    T.check(
+        "clamp lands on last real paragraph",
+        MarkdownBridge.sourceLine(atCaretLocation: clamped, in: attr) != nil
+    )
+
+    let lines = md.components(separatedBy: "\n")
+    T.eq("POSIX split has trailing empty", lines.last, "")
+    T.eq(
+        "G skips absent trailing empty",
+        MarkdownBridge.lastNavigableMarkdownLineIndex(in: lines, attributed: attr),
+        lines.count - 2
+    )
+}
+
+do {
+    // Intentional empty last line (`content\n\n`) stays navigable for G.
+    let md = "+ a\n\n"
+    let attr = styled(md, active: nil)
+    let lines = md.components(separatedBy: "\n")
+    // ["+ a", "", ""] — last "" is POSIX artifact; middle "" is a real blank line.
+    T.eq(
+        "G lands on intentional blank",
+        MarkdownBridge.lastNavigableMarkdownLineIndex(in: lines, attributed: attr),
+        1
+    )
+}
+
+print("\nLineIndexCache trailing newline")
+do {
+    var cache = LineIndexCache()
+    cache.rebuildForced(from: "a\nb\n")
+    T.eq("a\\nb\\n is two lines", cache.lineCount, 2)
+    T.eq("EOF maps to last content line", cache.lineIndex(at: 4), 1)
+
+    cache.rebuildForced(from: "a\nb\n\n")
+    T.eq("a\\nb\\n\\n keeps blank line", cache.lineCount, 3)
+    T.eq("blank line start", cache.characterIndex(forLine: 2), 4)
+}
+
 // MARK: - FuzzyMatcher / frecency
 
 do {
