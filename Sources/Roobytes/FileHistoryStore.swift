@@ -45,8 +45,9 @@ public final class FileHistoryStore {
     }
 
     /// Sort vault files by frecency (desc), then alphabetical relative path.
-    public func ranked(_ files: [URL], vault: URL, now: Date = Date()) -> [URL] {
-        files.sorted { a, b in
+    /// When `limit` is set, only the top-N results are returned (still ranks the full input).
+    public func ranked(_ files: [URL], vault: URL, now: Date = Date(), limit: Int? = nil) -> [URL] {
+        let sorted = files.sorted { a, b in
             let sa = score(for: a, now: now)
             let sb = score(for: b, now: now)
             if sa != sb { return sa > sb }
@@ -54,6 +55,24 @@ public final class FileHistoryStore {
             let db = VaultFileIndex.relativeDisplayPath(for: b, vault: vault)
             return da.localizedCaseInsensitiveCompare(db) == .orderedAscending
         }
+        if let limit, limit >= 0 {
+            return Array(sorted.prefix(limit))
+        }
+        return sorted
+    }
+
+    /// Rank precomputed entries (avoids re-deriving display paths in the comparator).
+    public func rankedEntries(_ entries: [VaultFileIndex.Entry], now: Date = Date(), limit: Int? = nil) -> [VaultFileIndex.Entry] {
+        let sorted = entries.sorted { a, b in
+            let sa = score(for: a.url, now: now)
+            let sb = score(for: b.url, now: now)
+            if sa != sb { return sa > sb }
+            return a.displayPath.localizedCaseInsensitiveCompare(b.displayPath) == .orderedAscending
+        }
+        if let limit, limit >= 0 {
+            return Array(sorted.prefix(limit))
+        }
+        return sorted
     }
 
     public static func frecency(

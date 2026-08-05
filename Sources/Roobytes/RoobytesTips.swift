@@ -13,7 +13,12 @@ public enum RoobytesTips {
         Tip(
             id: "word-complete",
             title: "Word completion",
-            body: "In Insert, type 2+ letters — menu + ghost from this note. Tab/Enter accept. Toggle with :complete / :cmp or Settings."
+            body: "In Insert, type 2+ letters — menu + ghost from this note. Tab/Enter accept when the menu is up. On a list/task line, Tab nests and ⇧Tab unnests (2 spaces). Toggle completion with :complete / :cmp or Settings."
+        ),
+        Tip(
+            id: "list-indent",
+            title: "Nest lists with Tab",
+            body: "In Insert on a task or bullet, Tab indents one level and Shift+Tab outdents — same idea as Obsidian, using two spaces."
         ),
         Tip(
             id: "esc-normal",
@@ -33,7 +38,7 @@ public enum RoobytesTips {
         Tip(
             id: "daily-note",
             title: "Daily note",
-            body: ":daily (or :today) opens diaries/YYYY-MM-DD.md from vault-root daily-notes-temp.md. If the template is missing, Roobytes offers Create starter or Choose file…"
+            body: ":daily (or :today) opens YYYY-MM-DD.md in the vault notes folder (default diaries/). Template is vault-root daily-notes-temp.md. Settings → Daily notes: template + Choose folder… / Create folder."
         ),
         Tip(
             id: "chord-hints",

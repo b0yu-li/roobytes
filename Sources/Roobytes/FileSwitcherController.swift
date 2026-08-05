@@ -22,13 +22,17 @@ final class FileSwitcherController: NSViewController, NSTableViewDataSource, NST
 
     private var vaultURL: URL?
     private var currentFileURL: URL?
-    private var allFiles: [URL] = []
+    private var allEntries: [VaultFileIndex.Entry] = []
     private var results: [URL] = []
     private var keyMonitor: Any?
     private var panelWidthConstraint: NSLayoutConstraint?
     private var panelHeightConstraint: NSLayoutConstraint?
+    private var refilterWorkItem: DispatchWorkItem?
 
     private let maxVisibleRows = 10
+    /// Cap ranked / fuzzy results — UI only shows ~10 rows; scanning thousands is wasted work.
+    private let maxResultCount = 80
+    private let refilterDebounce: TimeInterval = 0.05
     private let rowHeight: CGFloat = 26
     private let queryBandHeight: CGFloat = 44
     private let panelWidth: CGFloat = 480
@@ -186,11 +190,12 @@ final class FileSwitcherController: NSViewController, NSTableViewDataSource, NST
         applyChrome()
     }
 
-    func show(vault: URL, files: [URL], currentFile: URL?) {
+    func show(vault: URL, entries: [VaultFileIndex.Entry], currentFile: URL?) {
         vaultURL = vault
         currentFileURL = currentFile?.standardizedFileURL
-        allFiles = files.map(\.standardizedFileURL)
+        allEntries = entries
         queryField.stringValue = ""
+        refilterWorkItem?.cancel()
         applyChrome()
         refilter()
         view.isHidden = false
@@ -203,6 +208,17 @@ final class FileSwitcherController: NSViewController, NSTableViewDataSource, NST
             guard let self, self.isVisible else { return }
             self.focusQueryField()
         }
+    }
+
+    /// Legacy entry used by tests / callers that only have URLs.
+    func show(vault: URL, files: [URL], currentFile: URL?) {
+        let entries = files.map {
+            VaultFileIndex.Entry(
+                url: $0.standardizedFileURL,
+                displayPath: VaultFileIndex.relativeDisplayPath(for: $0, vault: vault)
+            )
+        }
+        show(vault: vault, entries: entries, currentFile: currentFile)
     }
 
     private var isQueryEditing: Bool {
@@ -221,6 +237,7 @@ final class FileSwitcherController: NSViewController, NSTableViewDataSource, NST
     }
 
     func dismiss(notifyCancel: Bool = false) {
+        refilterWorkItem?.cancel()
         removeKeyMonitor()
         view.isHidden = true
         queryField.stringValue = ""
@@ -239,28 +256,40 @@ final class FileSwitcherController: NSViewController, NSTableViewDataSource, NST
     // MARK: - Filter / ranking
 
     private func refilter() {
-        guard let vaultURL else {
+        guard vaultURL != nil else {
             results = []
             reloadResultsUI()
             return
         }
         let query = queryField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        let ranked = FileHistoryStore.shared.ranked(allFiles, vault: vaultURL)
 
         if query.isEmpty {
-            // Prefer selecting something other than the current file when possible.
-            results = ranked
+            results = FileHistoryStore.shared
+                .rankedEntries(allEntries, limit: maxResultCount)
+                .map(\.url)
         } else {
-            results = ranked.compactMap { url -> (URL, Double)? in
-                let display = VaultFileIndex.relativeDisplayPath(for: url, vault: vaultURL)
-                guard let fuzzy = FuzzyMatcher.score(query: query, target: display) else { return nil }
-                let frecency = FileHistoryStore.shared.score(for: url)
-                return (url, fuzzy * 1000 + frecency)
+            // Score every file once; keep top-N (no full frecency pre-sort).
+            results = allEntries.compactMap { entry -> (URL, Double)? in
+                guard let fuzzy = FuzzyMatcher.score(query: query, target: entry.displayPath) else {
+                    return nil
+                }
+                let frecency = FileHistoryStore.shared.score(for: entry.url)
+                return (entry.url, fuzzy * 1000 + frecency)
             }
             .sorted { $0.1 > $1.1 }
+            .prefix(maxResultCount)
             .map(\.0)
         }
         reloadResultsUI()
+    }
+
+    private func scheduleRefilter() {
+        refilterWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.refilter()
+        }
+        refilterWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + refilterDebounce, execute: work)
     }
 
     private func reloadResultsUI() {
@@ -392,7 +421,7 @@ final class FileSwitcherController: NSViewController, NSTableViewDataSource, NST
     // MARK: - NSTextFieldDelegate
 
     func controlTextDidChange(_ obj: Notification) {
-        refilter()
+        scheduleRefilter()
     }
 
     /// Field editor eats ↑/↓ / Enter / Esc — intercept via doCommandBy, not `keyDown`.

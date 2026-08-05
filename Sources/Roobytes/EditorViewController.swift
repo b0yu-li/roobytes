@@ -437,6 +437,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
             if commandSelector == #selector(insertNewline(_:))
                 || commandSelector == #selector(insertNewlineIgnoringFieldEditor(_:))
                 || commandSelector == #selector(insertTab(_:))
+                || commandSelector == #selector(insertBacktab(_:))
                 || commandSelector == #selector(deleteBackward(_:))
                 || commandSelector == #selector(deleteForward(_:))
             {
@@ -468,6 +469,16 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
                     wordCompletion.updateGhost(originInHost: anchors.ghost)
                 }
                 return true
+            }
+        }
+        // Insert: Tab / Shift+Tab nest or unnest list/task lines (Obsidian-like, 2 spaces).
+        if vimMode == .insert {
+            if commandSelector == #selector(insertTab(_:)) {
+                if adjustListIndent(delta: 1) { return true }
+            }
+            if commandSelector == #selector(insertBacktab(_:)) {
+                if adjustListIndent(delta: -1) { return true }
+                return true // swallow even when already at root
             }
         }
         if commandSelector == #selector(insertNewline(_:))

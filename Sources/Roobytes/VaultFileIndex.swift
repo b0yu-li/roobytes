@@ -2,47 +2,59 @@ import Foundation
 
 /// Recursive markdown file listing under a vault folder.
 public enum VaultFileIndex {
+    /// Precomputed vault entry (url + display path) for ⌘P ranking without re-deriving paths.
+    public struct Entry: Sendable {
+        public let url: URL
+        public let displayPath: String
+    }
+
     /// Markdown / text notes under `root`, skipping hidden path components (dot-directories).
     /// Sorted by vault-relative path (case-insensitive).
     @MainActor
     public static func scan(root: URL) -> [URL] {
+        scanEntries(root: root).map(\.url)
+    }
+
+    /// Same as `scan`, but keeps display paths for frecency / fuzzy without recomputing.
+    @MainActor
+    public static func scanEntries(root: URL) -> [Entry] {
         let fm = FileManager.default
-        let rootPath = root.standardizedFileURL.path
+        let rootStd = root.standardizedFileURL
+        let rootPath = rootStd.path
         guard let enumerator = fm.enumerator(
-            at: root,
+            at: rootStd,
             includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else { return [] }
 
-        var results: [URL] = []
+        var results: [Entry] = []
         let rootPrefix = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
         for case let url as URL in enumerator {
             let standardized = url.standardizedFileURL
-            // Extra guard: skip any path component that starts with `.`
             let relativeComponents = standardized.path
                 .dropFirst(rootPrefix.count)
                 .split(separator: "/")
                 .map(String.init)
             if relativeComponents.contains(where: { $0.hasPrefix(".") }) {
-                var isDir: ObjCBool = false
-                if fm.fileExists(atPath: standardized.path, isDirectory: &isDir), isDir.boolValue {
+                if let values = try? standardized.resourceValues(forKeys: [.isDirectoryKey]),
+                   values.isDirectory == true
+                {
                     enumerator.skipDescendants()
                 }
                 continue
             }
-            var isDir: ObjCBool = false
-            guard fm.fileExists(atPath: standardized.path, isDirectory: &isDir), !isDir.boolValue else {
-                continue
-            }
+            guard let values = try? standardized.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey]),
+                  values.isDirectory != true,
+                  values.isRegularFile == true
+            else { continue }
             guard isMarkdownPath(standardized) else { continue }
             guard standardized.path.hasPrefix(rootPrefix) else { continue }
-            results.append(standardized)
+            let display = relativeDisplayPath(for: standardized, vault: rootStd)
+            results.append(Entry(url: standardized, displayPath: display))
         }
 
         return results.sorted {
-            relativeDisplayPath(for: $0, vault: root)
-                .localizedCaseInsensitiveCompare(relativeDisplayPath(for: $1, vault: root))
-                == .orderedAscending
+            $0.displayPath.localizedCaseInsensitiveCompare($1.displayPath) == .orderedAscending
         }
     }
 

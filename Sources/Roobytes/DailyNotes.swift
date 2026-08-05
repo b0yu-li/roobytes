@@ -1,7 +1,8 @@
 import Foundation
 
-/// Daily note paths and create-from-template for the vault’s `diaries/` folder.
+/// Daily note paths and create-from-template for the vault’s diaries folder.
 /// Template path is vault-root `daily-notes-temp.md` (Create starter / Choose file via setup UI).
+/// Diaries folder defaults to `diaries/` and is configurable via Settings (vault-relative path).
 public enum DailyNotes {
     public static let templateFileName = "daily-notes-temp.md"
     public static let diariesFolderName = "diaries"
@@ -45,8 +46,46 @@ public enum DailyNotes {
         vault.appendingPathComponent(templateFileName, isDirectory: false)
     }
 
-    public static func diariesFolder(vault: URL) -> URL {
-        vault.appendingPathComponent(diariesFolderName, isDirectory: true)
+    /// Resolved diaries folder under `vault`.
+    /// Pass `relativePath` from Settings (`diariesRelativePath`); `nil` → `"diaries"`.
+    public static func diariesFolder(
+        vault: URL,
+        relativePath: String? = nil
+    ) -> URL {
+        let clean = sanitizeDiariesRelativePath(relativePath ?? diariesFolderName) ?? diariesFolderName
+        return vault.appendingPathComponent(clean, isDirectory: true)
+    }
+
+    /// Normalize a vault-relative diaries path; rejects absolute / parent escapes.
+    public static func sanitizeDiariesRelativePath(_ raw: String) -> String? {
+        var path = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        while path.hasPrefix("./") { path = String(path.dropFirst(2)) }
+        while path.hasPrefix("/") { path = String(path.dropFirst()) }
+        while path.hasSuffix("/") { path = String(path.dropLast()) }
+        guard !path.isEmpty else { return nil }
+        let parts = path.split(separator: "/").map(String.init)
+        guard !parts.isEmpty, !parts.contains(where: { $0 == ".." || $0 == "." || $0.isEmpty }) else {
+            return nil
+        }
+        return parts.joined(separator: "/")
+    }
+
+    /// Create the diaries folder if missing (Settings “Create folder” / `:daily`).
+    @discardableResult
+    public static func ensureDiariesFolder(
+        vault: URL,
+        relativePath: String? = nil,
+        fileManager: FileManager = .default
+    ) throws -> URL {
+        let folder = diariesFolder(vault: vault, relativePath: relativePath)
+        if !fileManager.fileExists(atPath: folder.path) {
+            do {
+                try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+            } catch {
+                throw EnsureError.writeFailed(error.localizedDescription)
+            }
+        }
+        return folder
     }
 
     public static func templateExists(
@@ -54,6 +93,16 @@ public enum DailyNotes {
         fileManager: FileManager = .default
     ) -> Bool {
         fileManager.fileExists(atPath: templateURL(vault: vault).path)
+    }
+
+    public static func diariesFolderExists(
+        vault: URL,
+        relativePath: String? = nil,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        var isDir: ObjCBool = false
+        let path = diariesFolder(vault: vault, relativePath: relativePath).path
+        return fileManager.fileExists(atPath: path, isDirectory: &isDir) && isDir.boolValue
     }
 
     /// Write the starter markdown to the vault-root template path (overwrites if present).
@@ -89,14 +138,15 @@ public enum DailyNotes {
         }
     }
 
-    /// Prefer exact `YYYY-MM-DD.md`, else any `YYYY-MM-DD*.md` in `diaries/`.
+    /// Prefer exact `YYYY-MM-DD.md`, else any `YYYY-MM-DD*.md` in the diaries folder.
     public static func existingNoteURL(
         vault: URL,
         date: Date = Date(),
         calendar: Calendar = .current,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        relativePath: String? = nil
     ) -> URL? {
-        let folder = diariesFolder(vault: vault)
+        let folder = diariesFolder(vault: vault, relativePath: relativePath)
         let exact = folder.appendingPathComponent(fileName(for: date, calendar: calendar))
         if fileManager.fileExists(atPath: exact.path) {
             return exact.standardizedFileURL
@@ -123,18 +173,20 @@ public enum DailyNotes {
         return matches.first?.standardizedFileURL
     }
 
-    /// Open existing daily note, or create `diaries/YYYY-MM-DD.md` from the vault template.
+    /// Open existing daily note, or create `…/YYYY-MM-DD.md` from the vault template.
     public static func ensureTodaysNote(
         vault: URL,
         date: Date = Date(),
         calendar: Calendar = .current,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        relativePath: String? = nil
     ) throws -> URL {
         if let existing = existingNoteURL(
             vault: vault,
             date: date,
             calendar: calendar,
-            fileManager: fileManager
+            fileManager: fileManager,
+            relativePath: relativePath
         ) {
             return existing
         }
@@ -143,14 +195,11 @@ public enum DailyNotes {
             throw EnsureError.templateMissing
         }
 
-        let folder = diariesFolder(vault: vault)
-        if !fileManager.fileExists(atPath: folder.path) {
-            do {
-                try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
-            } catch {
-                throw EnsureError.writeFailed(error.localizedDescription)
-            }
-        }
+        let folder = try ensureDiariesFolder(
+            vault: vault,
+            relativePath: relativePath,
+            fileManager: fileManager
+        )
 
         let destination = folder.appendingPathComponent(fileName(for: date, calendar: calendar))
         do {

@@ -8,6 +8,12 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.3.0
+
+- Speed up ⌘P on large vaults (cache, result cap, debounce)
+- Settings: choose / create diaries folder (auto-create on :daily)
+- Insert Tab / ⇧Tab nest and unnest lists like Obsidian (2 spaces)
+
 ## 0.2.2
 
 - Fix task slug caret jumps and checkbox body shift on Insert

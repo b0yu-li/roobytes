@@ -44,6 +44,8 @@ enum RoobytesDefaultsKey {
     static let lastTipID = "Roobytes.lastTipID"
     static let wordCompletion = "Roobytes.wordCompletion"
     static let spellChecking = "Roobytes.spellChecking"
+    /// Vault-relative diaries folder (default `diaries`). May include path separators.
+    static let diariesRelativePath = "Roobytes.diariesRelativePath"
 }
 
 /// Persisted user preferences (UserDefaults).
@@ -166,6 +168,28 @@ final class RoobytesSettings {
     var lastFilePath: String? {
         get { defaults.string(forKey: RoobytesDefaultsKey.lastFilePath) }
         set { defaults.set(newValue, forKey: RoobytesDefaultsKey.lastFilePath) }
+    }
+
+    /// Vault-relative diaries folder path. Default `diaries`. Empty / invalid → default.
+    var diariesRelativePath: String {
+        get {
+            let raw = defaults.string(forKey: RoobytesDefaultsKey.diariesRelativePath)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let raw, !raw.isEmpty else { return DailyNotes.diariesFolderName }
+            return DailyNotes.sanitizeDiariesRelativePath(raw) ?? DailyNotes.diariesFolderName
+        }
+        set {
+            if let clean = DailyNotes.sanitizeDiariesRelativePath(newValue) {
+                defaults.set(clean, forKey: RoobytesDefaultsKey.diariesRelativePath)
+            } else {
+                defaults.set(DailyNotes.diariesFolderName, forKey: RoobytesDefaultsKey.diariesRelativePath)
+            }
+        }
+    }
+
+    /// Normalize a vault-relative diaries path; rejects absolute / parent escapes.
+    static func sanitizeDiariesRelativePath(_ raw: String) -> String? {
+        DailyNotes.sanitizeDiariesRelativePath(raw)
     }
 
     var lastFolderURL: URL? {

@@ -8,6 +8,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, Edit
     private(set) var note = MarkdownDocument.empty()
     private(set) var folderURL: URL?
     private(set) var isPinned = false
+    /// Cached ⌘P index for the open vault (invalidated on folder change / explicit refresh).
+    private var cachedVaultEntries: [VaultFileIndex.Entry]?
+    private var cachedVaultRoot: URL?
     private var pinButton: NSButton?
     private var rssLabel: NSTextField?
     private var vimModeDot: NSImageView?
@@ -249,14 +252,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, Edit
         guard confirmDiscardIfNeeded() else { return }
         let resolved = AppDelegate.resolvedVaultRoot(for: url)
         folderURL = resolved
+        invalidateVaultFileCache()
         RoobytesSettings.shared.rememberOpened(file: nil, folder: resolved)
 
+        let entries = vaultFileEntries(for: resolved)
         if let preferred = preferredFile,
            FileManager.default.fileExists(atPath: preferred.path)
         {
             loadFile(preferred)
-        } else if let first = VaultFileIndex.scan(root: resolved).first {
-            loadFile(first)
+        } else if let first = entries.first {
+            loadFile(first.url)
         } else {
             note = MarkdownDocument(text: "", isDirty: false)
             editor.applyDocument(note)
@@ -275,6 +280,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, Edit
                 if currentRoot != preferredRoot {
                     guard confirmDiscardIfNeeded() else { return }
                     folderURL = preferredRoot
+                    invalidateVaultFileCache()
                     loadFile(standardized)
                     return
                 }
@@ -286,6 +292,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, Edit
         if folderURL?.standardizedFileURL != preferredRoot {
             guard confirmDiscardIfNeeded() else { return }
             folderURL = preferredRoot
+            invalidateVaultFileCache()
         } else {
             guard confirmDiscardIfNeeded() else { return }
         }
@@ -378,11 +385,28 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, Edit
             return
         }
         editor.dismissCommandPalette()
-        let files = VaultFileIndex.scan(root: folderURL)
+        let entries = vaultFileEntries(for: folderURL)
         // Drop editor focus before showing — menu ⌘P otherwise leaves Normal vim
         // as first responder and typing never reaches the query field.
         window?.makeFirstResponder(nil)
-        fileSwitcher.show(vault: folderURL, files: files, currentFile: note.url)
+        fileSwitcher.show(vault: folderURL, entries: entries, currentFile: note.url)
+    }
+
+    /// Cached vault index for ⌘P; rebuilds when the vault root changes.
+    private func vaultFileEntries(for root: URL) -> [VaultFileIndex.Entry] {
+        let std = root.standardizedFileURL
+        if let cachedVaultRoot, cachedVaultRoot == std, let cachedVaultEntries {
+            return cachedVaultEntries
+        }
+        let entries = VaultFileIndex.scanEntries(root: std)
+        cachedVaultRoot = std
+        cachedVaultEntries = entries
+        return entries
+    }
+
+    private func invalidateVaultFileCache() {
+        cachedVaultEntries = nil
+        cachedVaultRoot = nil
     }
 
     func dismissFileSwitcher(focusEditor: Bool = true) {
@@ -481,8 +505,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, Edit
         guard let folderURL else {
             return "No vault open — Open Folder… (⇧⌘O) first"
         }
+        let diariesRel = RoobytesSettings.shared.diariesRelativePath
         do {
-            let url = try DailyNotes.ensureTodaysNote(vault: folderURL)
+            let url = try DailyNotes.ensureTodaysNote(vault: folderURL, relativePath: diariesRel)
             openFile(url)
             return nil
         } catch DailyNotes.EnsureError.templateMissing {
@@ -494,7 +519,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, Edit
                 return "Missing \(DailyNotes.templateFileName) — set up a template to use :daily"
             }
             do {
-                let url = try DailyNotes.ensureTodaysNote(vault: folderURL)
+                let url = try DailyNotes.ensureTodaysNote(vault: folderURL, relativePath: diariesRel)
                 openFile(url)
                 return nil
             } catch DailyNotes.EnsureError.writeFailed(let detail) {

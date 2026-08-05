@@ -4,6 +4,49 @@ import QuartzCore
 @MainActor
 extension EditorViewController {
     // MARK: - Private — Live Preview
+
+    /// Insert Tab / Shift+Tab: nest or unnest the caret’s list/task line (2 spaces per level).
+    /// Returns `true` when the line was a list item and indent changed (or outdent refused at root).
+    @discardableResult
+    func adjustListIndent(delta: Int) -> Bool {
+        guard !isApplyingDocument, vimMode == .insert else { return false }
+        restyleWorkItem?.cancel()
+        hideWordCompletion()
+
+        if let active = activeSourceLine {
+            syncLineAtIndex(active)
+        }
+
+        let caret = currentMarkdownCaret()
+        var lines = markdownLines
+        guard caret.line >= 0, caret.line < lines.count else { return false }
+        let current = lines[caret.line]
+        guard MarkdownBridge.isListLine(current) else { return false }
+        guard let next = MarkdownBridge.adjustListIndent(current, delta: delta) else {
+            return true // list line but no-op (e.g. outdent at root)
+        }
+        lines[caret.line] = next
+        if MarkdownBridge.taskState(in: next) != nil {
+            MarkdownBridge.reconcileTaskTree(around: caret.line, in: &lines)
+        }
+        markdownSource = lines.joined(separator: "\n")
+
+        let step = MarkdownBridge.listIndentStepSpaces * delta
+        var column = max(0, caret.column + step)
+        column = MarkdownBridge.markdownColumnAfterTaskSlugToggle(
+            markdownLine: next,
+            column: column,
+            expanding: true
+        )
+        let target = MarkdownBridge.MarkdownCaret(line: caret.line, column: column)
+        activeSourceLine = caret.line
+        liveRestyle(to: target, animateScroll: false)
+        snapTaskLineCaretIfNeeded()
+        delegate?.editorDidChangeText(self)
+        updateLineNumberGutter()
+        return true
+    }
+
     /// Split the active line in markdown space and continue task/list indent.
     func insertNewlineContinuingList() {
         guard !isApplyingDocument else { return }

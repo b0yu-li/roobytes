@@ -902,6 +902,7 @@ do {
     T.check("help text has v Visual", VimHelp.text.contains("Visual"))
     T.check("help text has Visual yank", VimHelp.text.contains("y yank"))
     T.check("help text has Visual cut", VimHelp.text.contains("d/x cut"))
+    T.check("help text has ⇧Tab", VimHelp.text.contains("⇧Tab"))
     T.check("help Edit lists Visual y d x", VimHelp.sections.contains(where: {
         $0.title == "Edit" && $0.rows.contains(where: { $0.keys == "y d x" })
     }))
@@ -927,10 +928,11 @@ do {
     T.check("help Edit lists Look Up", VimHelp.sections.contains(where: {
         $0.title == "Edit" && $0.rows.contains(where: { $0.keys == "K" })
     }))
+    T.check("tips has list-indent", RoobytesTips.all.contains(where: { $0.id == "list-indent" }))
     T.check("tips catalog non-empty", !RoobytesTips.all.isEmpty)
     T.check("tips has daily-note", RoobytesTips.all.contains(where: { $0.id == "daily-note" }))
-    T.check("tips daily mentions setup", RoobytesTips.all.contains(where: {
-        $0.id == "daily-note" && $0.body.contains("Create starter")
+    T.check("tips daily mentions folder", RoobytesTips.all.contains(where: {
+        $0.id == "daily-note" && $0.body.contains("diaries")
     }))
     T.check("help :daily mentions template prompt", VimHelp.text.contains("prompts if template"))
     T.check("tips has lookup-k", RoobytesTips.all.contains(where: { $0.id == "lookup-k" }))
@@ -1120,6 +1122,26 @@ do {
         try! String(contentsOf: created, encoding: .utf8),
         DailyNotes.starterTemplateMarkdown
     )
+
+    // Auto-create diaries folder when absent.
+    let vault2 = fm.temporaryDirectory.appendingPathComponent("roobytes-daily2-\(UUID().uuidString)", isDirectory: true)
+    defer { try? fm.removeItem(at: vault2) }
+    try! fm.createDirectory(at: vault2, withIntermediateDirectories: true)
+    try! DailyNotes.installStarterTemplate(vault: vault2, fileManager: fm)
+    T.check("diaries absent before", !DailyNotes.diariesFolderExists(vault: vault2, relativePath: "diaries", fileManager: fm))
+    let created2 = try! DailyNotes.ensureTodaysNote(
+        vault: vault2,
+        date: date,
+        calendar: cal,
+        fileManager: fm,
+        relativePath: "diaries"
+    )
+    T.check("diaries auto-created", DailyNotes.diariesFolderExists(vault: vault2, relativePath: "diaries", fileManager: fm))
+    T.check("note in diaries", created2.path.contains("/diaries/"))
+    T.eq("sanitize nested", DailyNotes.sanitizeDiariesRelativePath("notes/daily"), "notes/daily")
+    T.eq("sanitize reject ..", DailyNotes.sanitizeDiariesRelativePath("../x"), Optional<String>.none)
+    _ = try! DailyNotes.ensureDiariesFolder(vault: vault2, relativePath: "journal", fileManager: fm)
+    T.check("custom folder", DailyNotes.diariesFolderExists(vault: vault2, relativePath: "journal", fileManager: fm))
 
     // Second call reopens existing (no duplicate).
     let again = try! DailyNotes.ensureTodaysNote(vault: vault, date: date, calendar: cal, fileManager: fm)
@@ -1462,6 +1484,31 @@ do {
         "continue plain",
         MarkdownBridge.listContinuationPrefix(for: "  plain"),
         "  "
+    )
+
+    T.check("isList task", MarkdownBridge.isListLine("+ [ ] x"))
+    T.check("isList bullet", MarkdownBridge.isListLine("  - item"))
+    T.check("isList numbered", MarkdownBridge.isListLine("1. a"))
+    T.check("isList plain false", !MarkdownBridge.isListLine("  plain"))
+    T.eq(
+        "indent nest",
+        MarkdownBridge.adjustListIndent("+ [ ] root", delta: 1),
+        "  + [ ] root"
+    )
+    T.eq(
+        "outdent nest",
+        MarkdownBridge.adjustListIndent("  + [ ] nest", delta: -1),
+        "+ [ ] nest"
+    )
+    T.eq(
+        "outdent root nil",
+        MarkdownBridge.adjustListIndent("+ [ ] root", delta: -1),
+        Optional<String>.none
+    )
+    T.eq(
+        "indent bullet",
+        MarkdownBridge.adjustListIndent("- item", delta: 1),
+        "  - item"
     )
 
     T.eq("heading body h3", MarkdownBridge.headingBody("### Title"), "Title")

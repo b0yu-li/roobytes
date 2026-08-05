@@ -22,7 +22,8 @@ public enum VimHelp {
             Row(keys: "i a I A", blurb: "Insert · before / after / line start / end"),
             Row(keys: "o O", blurb: "Open line below / above → Insert"),
             Row(keys: "v", blurb: "Visual · motions · y yank · d/x cut · ⌘B / ⌘I"),
-            Row(keys: "Tab", blurb: "Insert: accept word completion (buffer)"),
+            Row(keys: "Tab", blurb: "Insert: nest list · accept word complete"),
+            Row(keys: "⇧Tab", blurb: "Insert: unnest list / task one level"),
             Row(keys: "g r z m [ ] …", blurb: "Pending chords show a context hint"),
         ]),
         Section(title: "Motion", rows: [

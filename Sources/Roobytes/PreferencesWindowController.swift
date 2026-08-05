@@ -44,6 +44,10 @@ final class PreferencesWindowController: NSWindowController {
     private let dailyTemplateStatusLabel = NSTextField(labelWithString: "")
     private let dailyCreateStarterButton = NSButton(title: "Create starter", target: nil, action: nil)
     private let dailyChooseFileButton = NSButton(title: "Choose file…", target: nil, action: nil)
+    private let dailyFolderStatusLabel = NSTextField(labelWithString: "")
+    private let dailyChooseFolderButton = NSButton(title: "Choose folder…", target: nil, action: nil)
+    private let dailyCreateFolderButton = NSButton(title: "Create folder", target: nil, action: nil)
+    private let dailyResetFolderButton = NSButton(title: "Use diaries", target: nil, action: nil)
     private let debugLoggingCheckbox = NSButton(
         checkboxWithTitle: "Debug logging (vim / newlines)",
         target: nil,
@@ -157,13 +161,36 @@ final class PreferencesWindowController: NSWindowController {
         dailyButtons.orientation = .horizontal
         dailyButtons.alignment = .centerY
         dailyButtons.spacing = 8
-        let dailyStack = NSStackView(views: [dailyTemplateStatusLabel, dailyButtons])
+
+        dailyFolderStatusLabel.font = .systemFont(ofSize: 12)
+        dailyFolderStatusLabel.textColor = .secondaryLabelColor
+        dailyFolderStatusLabel.maximumNumberOfLines = 2
+        dailyFolderStatusLabel.lineBreakMode = .byWordWrapping
+        for button in [dailyChooseFolderButton, dailyCreateFolderButton, dailyResetFolderButton] {
+            button.target = self
+            button.bezelStyle = .rounded
+            button.controlSize = .small
+        }
+        dailyChooseFolderButton.action = #selector(chooseDailyFolder(_:))
+        dailyCreateFolderButton.action = #selector(createDailyFolder(_:))
+        dailyResetFolderButton.action = #selector(resetDailyFolder(_:))
+        let folderButtons = NSStackView(views: [
+            dailyChooseFolderButton, dailyCreateFolderButton, dailyResetFolderButton,
+        ])
+        folderButtons.orientation = .horizontal
+        folderButtons.alignment = .centerY
+        folderButtons.spacing = 8
+
+        let dailyStack = NSStackView(views: [
+            dailyTemplateStatusLabel, dailyButtons,
+            dailyFolderStatusLabel, folderButtons,
+        ])
         dailyStack.orientation = .vertical
         dailyStack.alignment = .leading
         dailyStack.spacing = 8
         column.addArrangedSubview(section(
             title: "Daily notes",
-            caption: "`:daily` / `:today` · vault-root \(DailyNotes.templateFileName)",
+            caption: "`:daily` / `:today` · template + notes folder under vault",
             body: dailyStack
         ))
 
@@ -317,16 +344,29 @@ final class PreferencesWindowController: NSWindowController {
     private func refreshDailyTemplateStatus() {
         guard let vault = AppDelegate.shared?.keyVaultURL() else {
             dailyTemplateStatusLabel.stringValue = "No vault open — Open Folder… (⇧⌘O) first"
+            dailyFolderStatusLabel.stringValue = ""
             dailyCreateStarterButton.isEnabled = false
             dailyChooseFileButton.isEnabled = false
+            dailyChooseFolderButton.isEnabled = false
+            dailyCreateFolderButton.isEnabled = false
+            dailyResetFolderButton.isEnabled = false
             return
         }
         dailyCreateStarterButton.isEnabled = true
         dailyChooseFileButton.isEnabled = true
+        dailyChooseFolderButton.isEnabled = true
+        dailyCreateFolderButton.isEnabled = true
+        dailyResetFolderButton.isEnabled = true
         if DailyNotes.templateExists(vault: vault) {
             dailyTemplateStatusLabel.stringValue = "Template ready · \(DailyNotes.templateFileName)"
         } else {
             dailyTemplateStatusLabel.stringValue = "Missing \(DailyNotes.templateFileName)"
+        }
+        let rel = RoobytesSettings.shared.diariesRelativePath
+        if DailyNotes.diariesFolderExists(vault: vault, relativePath: rel) {
+            dailyFolderStatusLabel.stringValue = "Notes folder ready · \(rel)/"
+        } else {
+            dailyFolderStatusLabel.stringValue = "Notes folder missing · \(rel)/ (created on first :daily)"
         }
     }
 
@@ -342,6 +382,64 @@ final class PreferencesWindowController: NSWindowController {
         if DailyNotesTemplateSetup.chooseFileFromSettings(vault: vault) {
             refreshDailyTemplateStatus()
         }
+    }
+
+    @objc private func chooseDailyFolder(_ sender: Any?) {
+        guard let vault = AppDelegate.shared?.keyVaultURL() else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.directoryURL = DailyNotes.diariesFolder(
+            vault: vault,
+            relativePath: RoobytesSettings.shared.diariesRelativePath
+        )
+        panel.message = "Choose the diaries folder inside this vault"
+        panel.prompt = "Select"
+        guard panel.runModal() == .OK, let url = panel.url?.standardizedFileURL else { return }
+        let vaultPath = vault.standardizedFileURL.path
+        let folderPath = url.path
+        guard folderPath == vaultPath || folderPath.hasPrefix(vaultPath + "/") else {
+            let alert = NSAlert()
+            alert.messageText = "Folder must be inside the vault"
+            alert.informativeText = "Pick a folder under \(vault.lastPathComponent)."
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+        var rel = String(folderPath.dropFirst(vaultPath.count))
+        if rel.hasPrefix("/") { rel = String(rel.dropFirst()) }
+        if rel.isEmpty {
+            let alert = NSAlert()
+            alert.messageText = "Pick a subfolder"
+            alert.informativeText = "Daily notes need a folder inside the vault (default: diaries)."
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+        RoobytesSettings.shared.diariesRelativePath = rel
+        refreshDailyTemplateStatus()
+    }
+
+    @objc private func createDailyFolder(_ sender: Any?) {
+        guard let vault = AppDelegate.shared?.keyVaultURL() else { return }
+        let rel = RoobytesSettings.shared.diariesRelativePath
+        do {
+            _ = try DailyNotes.ensureDiariesFolder(vault: vault, relativePath: rel)
+            refreshDailyTemplateStatus()
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Couldn’t create notes folder"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
+        }
+    }
+
+    @objc private func resetDailyFolder(_ sender: Any?) {
+        RoobytesSettings.shared.diariesRelativePath = DailyNotes.diariesFolderName
+        refreshDailyTemplateStatus()
     }
 
     private func displayPath(_ path: String) -> String {

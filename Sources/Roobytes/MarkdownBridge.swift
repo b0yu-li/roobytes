@@ -541,6 +541,37 @@ public enum MarkdownBridge {
         return body
     }
 
+    /// Indent / outdent list and task lines (Insert Tab / Shift+Tab). Two spaces per level.
+    public static let listIndentStepSpaces = 2
+    public static let listIndentStep = String(repeating: " ", count: listIndentStepSpaces)
+
+    /// Whether the line is a task, bullet, or numbered list item (after leading indent).
+    public static func isListLine(_ line: String) -> Bool {
+        let (_, rest) = splitIndent(line)
+        if matchTask(rest) != nil { return true }
+        if matchBullet(rest) != nil { return true }
+        if matchNumbered(rest) != nil { return true }
+        return false
+    }
+
+    /// Increase or decrease leading indent by `delta` levels (±1 typical). `nil` if no-op.
+    public static func adjustListIndent(_ line: String, delta: Int) -> String? {
+        guard delta != 0, isListLine(line) else { return nil }
+        let (indent, rest) = splitIndent(line)
+        if delta > 0 {
+            let added = String(repeating: listIndentStep, count: delta)
+            return added + indent + rest
+        }
+        // Outdent: strip 2 spaces per level; refuse if not enough leading spaces.
+        let need = listIndentStepSpaces * (-delta)
+        let indentNS = indent as NSString
+        guard indentNS.length >= need else { return nil }
+        for i in 0..<need {
+            guard indentNS.character(at: i) == 32 else { return nil }
+        }
+        return indentNS.substring(from: need) + rest
+    }
+
     /// Indent + marker to continue after Enter on a task/bullet/numbered line.
     public static func listContinuationPrefix(for line: String) -> String {
         let (indent, rest) = splitIndent(line)
