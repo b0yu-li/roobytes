@@ -8,6 +8,10 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.3.8
+
+- Slightly wider gap after task checkbox before body text
+
 ## 0.3.7
 
 - Diaries folder must be one level under the vault (reject nested paths; picker starts at vault root)

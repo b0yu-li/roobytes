@@ -973,8 +973,8 @@ public enum MarkdownBridge {
     private static func fixedLineHeight(for block: MDBlock) -> CGFloat {
         block == .task ? taskLineHeight : listLineHeight
     }
-    /// Trailing transparent pad after the square (tighter than raw `+ [ ] ` — body may shift on Insert).
-    private static let checkboxTrailingGap: CGFloat = 6
+    /// Trailing transparent pad after the square (breathing room before body; body may still shift on Insert).
+    private static let checkboxTrailingGap: CGFloat = 9
 
     /// Attachment cell width: square + trailing gap (never stretch the square).
     public static func taskCheckboxCellWidth() -> CGFloat {

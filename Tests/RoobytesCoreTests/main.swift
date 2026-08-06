@@ -277,10 +277,10 @@ do {
     T.eq("active rt col", backActive.column, midBody)
 }
 
-print("\ntask checkbox cell (tight)")
+print("\ntask checkbox cell (gap)")
 do {
     let cell = MarkdownBridge.taskCheckboxCellWidth()
-    T.eq("cell = square + gap", cell, 15 + 6)
+    T.eq("cell = square + gap", cell, 15 + 9)
 }
 
 // MARK: - Folds
