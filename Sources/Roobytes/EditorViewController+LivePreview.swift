@@ -518,35 +518,29 @@ extension EditorViewController {
             }
         }
 
-        let viewLine: String
-        if let found = MarkdownBridge.visibleParagraphText(
+        let visible = MarkdownBridge.visibleParagraphText(
             forSourceLine: lineIdx,
             in: storage,
             sourceLineParagraphIndex: sourceLineParagraphIndex
-        ), !found.isEmpty {
-            viewLine = found
-        } else if lineIdx == activeSourceLine {
-            // Caret paragraph must belong to this source line.
-            if let caretSrc = mdSourceLineAtCaret(in: storage), caretSrc != lineIdx {
-                RoobytesDebugLog.event("syncLine[\(lineIdx)] SKIP: caret on source line \(caretSrc)")
+        )
+        let viewLine: String
+        if lineIdx == activeSourceLine {
+            let caretSrc = mdSourceLineAtCaret(in: storage)
+            guard let resolved = MarkdownBridge.insertSyncViewLine(
+                activeLine: lineIdx,
+                visibleParagraph: visible,
+                caretParagraphText: currentParagraphText(),
+                caretSourceLine: caretSrc
+            ) else {
+                // Only nil when caret tags a different source line (join / mis-resolve).
+                RoobytesDebugLog.event(
+                    "syncLine[\(lineIdx)] SKIP: caret on source line \(caretSrc.map(String.init) ?? "nil")"
+                )
                 return
             }
-            let para = currentParagraphText()
-            if para.isEmpty {
-                // Emptying the last line (backspacing a fresh `+ ` at EOF) leaves a paragraph with
-                // no characters, so an empty `para` is the truth here. Skipping left stale markdown
-                // that the next restyle resurrected, making bottom-line edits look frozen.
-                guard MarkdownBridge.caretInTrailingEmptyParagraph(
-                    caretLocation: textView.selectedRange().location,
-                    in: storage
-                ), lineIdx == markdownLines.count - 1 else {
-                    RoobytesDebugLog.event("syncLine[\(lineIdx)] SKIP: active paragraph empty")
-                    return
-                }
-                viewLine = ""
-            } else {
-                viewLine = para
-            }
+            viewLine = resolved
+        } else if let found = visible, !found.isEmpty {
+            viewLine = found
         } else {
             RoobytesDebugLog.event("syncLine[\(lineIdx)] SKIP: paragraph not found")
             return

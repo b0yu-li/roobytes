@@ -570,6 +570,111 @@ do {
     T.check("raw task is not decorated", !MarkdownBridge.looksLikeDecoratedPreview("+ [ ] task"))
 }
 
+// MARK: - Insert sync: emptied active line must persist (Esc must not resurrect)
+
+print("\nInsert sync empty active line")
+do {
+    // Delete the only character on the active Insert line, then Esc — sync must write ""
+    // or restyle resurrects the glyph from stale markdownSource.
+    let cleared = MarkdownBridge.insertSyncViewLine(
+        activeLine: 8,
+        visibleParagraph: "",
+        caretParagraphText: "",
+        caretSourceLine: 8
+    )
+    T.eq("cleared tagged paragraph syncs empty", cleared, "")
+
+    let trailingEOF = MarkdownBridge.insertSyncViewLine(
+        activeLine: 8,
+        visibleParagraph: nil,
+        caretParagraphText: "",
+        caretSourceLine: nil
+    )
+    T.eq("character-less trailing empty syncs empty", trailingEOF, "")
+
+    // POSIX trailing `""` after the content line: active is count-2, visible emptied,
+    // caret often untagged at EOF — still must clear the active line, not SKIP.
+    let posixTrail = MarkdownBridge.insertSyncViewLine(
+        activeLine: 7,
+        visibleParagraph: "",
+        caretParagraphText: "",
+        caretSourceLine: nil
+    )
+    T.eq("emptied line before POSIX trailing empty syncs empty", posixTrail, "")
+
+    let stillTyping = MarkdownBridge.insertSyncViewLine(
+        activeLine: 8,
+        visibleParagraph: "a",
+        caretParagraphText: "a",
+        caretSourceLine: 8
+    )
+    T.eq("non-empty visible wins", stillTyping, "a")
+
+    let caretFallback = MarkdownBridge.insertSyncViewLine(
+        activeLine: 3,
+        visibleParagraph: nil,
+        caretParagraphText: "+ [ ] task",
+        caretSourceLine: 3
+    )
+    T.eq("caret paragraph used when visible absent", caretFallback, "+ [ ] task")
+
+    let wrongCaret = MarkdownBridge.insertSyncViewLine(
+        activeLine: 8,
+        visibleParagraph: nil,
+        caretParagraphText: "",
+        caretSourceLine: 7
+    )
+    T.check("caret on different source line skips", wrongCaret == nil)
+
+    // Visible still has the body — do not clear just because caret wandered.
+    let visibleWinsOverWrongCaret = MarkdownBridge.insertSyncViewLine(
+        activeLine: 8,
+        visibleParagraph: "keep me",
+        caretParagraphText: "",
+        caretSourceLine: 7
+    )
+    T.eq("non-empty visible wins even if caret elsewhere", visibleWinsOverWrongCaret, "keep me")
+}
+
+do {
+    // End-to-end-ish: active last line "a", then a view with that paragraph emptied.
+    let md = "# Focus\n\n# Notes\n\na"
+    let lines = md.components(separatedBy: "\n")
+    let active = lines.count - 1
+    T.eq("fixture last line is a", lines[active], "a")
+
+    let before = styled(md, active: active)
+    T.eq(
+        "before delete visible is a",
+        MarkdownBridge.visibleParagraphText(forSourceLine: active, in: before),
+        "a"
+    )
+    T.eq(
+        "before delete sync keeps a",
+        MarkdownBridge.insertSyncViewLine(
+            activeLine: active,
+            visibleParagraph: MarkdownBridge.visibleParagraphText(forSourceLine: active, in: before),
+            caretParagraphText: "a",
+            caretSourceLine: active
+        ),
+        "a"
+    )
+
+    // Simulate the post-backspace view: same document without the final glyph.
+    let afterMd = String(md.dropLast())
+    let after = styled(afterMd + (afterMd.hasSuffix("\n") ? "" : ""), active: active)
+    // Active index may still point at the last content slot; view line is empty / trailing.
+    let afterVisible = MarkdownBridge.visibleParagraphText(forSourceLine: active, in: after)
+    let afterCaretSrc = MarkdownBridge.sourceLine(atCaretLocation: after.length, in: after)
+    let synced = MarkdownBridge.insertSyncViewLine(
+        activeLine: active,
+        visibleParagraph: afterVisible,
+        caretParagraphText: "",
+        caretSourceLine: afterCaretSrc
+    )
+    T.eq("after delete sync clears stale a", synced, "")
+}
+
 // MARK: - Trailing empty last line (bottom-of-document edits)
 
 print("\nTrailing empty last line")

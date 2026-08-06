@@ -209,6 +209,30 @@ extension MarkdownBridge {
         return targetLine + " " + body
     }
 
+    /// Resolve the plain text Insert sync should write for `activeLine`, or `nil` to skip.
+    ///
+    /// Prefer a non-empty visible paragraph tagged with that source line. When the view shows
+    /// no characters for the active line, return `""` so clearing the line persists — skipping
+    /// left stale markdown that Esc restyled back into the view (deleted `a` reappearing).
+    public static func insertSyncViewLine(
+        activeLine: Int,
+        visibleParagraph: String?,
+        caretParagraphText: String,
+        caretSourceLine: Int?
+    ) -> String? {
+        if let visible = visibleParagraph, !visible.isEmpty {
+            return visible
+        }
+        if let caretSourceLine, caretSourceLine != activeLine {
+            return nil
+        }
+        if !caretParagraphText.isEmpty {
+            return caretParagraphText
+        }
+        // Empty active line (deleted all glyphs, or fresh empty). Persist the clear.
+        return ""
+    }
+
     /// True when a view line still has Live Preview widgets (not editable source).
     public static func looksLikeDecoratedPreview(_ line: String) -> Bool {
         if line.contains("\u{FFFC}") { return true }

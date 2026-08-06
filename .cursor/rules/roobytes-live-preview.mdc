@@ -45,6 +45,10 @@ After any join, **invalidate incremental restyle** and rebuild the attributed st
 
 Never fall back to `currentParagraphText()` for the active line when the caret paragraph’s `mdSourceLine` is a different index (unless reconciling a backspace join into that index).
 
+### Emptied active line
+
+When Insert clears every character on the active line, sync must write `""` into that markdown line (`MarkdownBridge.insertSyncViewLine`). Skipping left stale source that Esc restyles back (deleted glyphs reappear). Only skip when the caret tags a *different* source line.
+
 ## Folds
 
 - Nested-list folds hide children in the **view only**; markdown source is unchanged
