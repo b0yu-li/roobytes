@@ -22,7 +22,7 @@ Opens the last edited note when possible (see **Settings…** / `⌘,`); otherwi
 - Settings: **Roobytes → Settings…** (`⌘,`) — appearance, accent, reopen last file, restore pin, tips on startup, word completion, spell checking, daily notes template + notes folder, sound effects, debug logging
 - Go to File: **`⌘P`** — frecency-ranked vault jump (fuzzy filter; cached index)
 - Vim: **`Esc`** Normal · **`u`** undo · **`⌃d`/`⌃u`** half-page scroll · **`r`** · **`za`/`zc`/`zo`** fold nested lists · **`md`/`mD`** mark done/open · **`mf`** focus · **`'f`** go to focus · **`]t`/`[t`** next/prev undone task · **`gx`/`gX`** open URL (default browser / Firefox Private) · **`:w` / `:e!` / `:q` / `:pin` / `:folddone` / `:complete` / `:h` / `:tips`** · **`Tab`** nest list / complete · **`⇧Tab`** unnest · **`5j`** · **`dd`** · **`yy`** · **`⌘↩`** cycle task
-- Daily notes: **`:daily` / `:today`** — opens or creates `diaries/YYYY-MM-DD.md` (folder configurable in Settings) from vault-root `daily-notes-temp.md`. Missing template prompts Create starter / Choose file…
+- Daily notes: **`:daily` / `:today`** — opens or creates `diaries/YYYY-MM-DD.md` (direct vault subfolder; name configurable in Settings) from vault-root `daily-notes-temp.md`. Missing template prompts Create starter / Choose file…
 
 ## Ship
 

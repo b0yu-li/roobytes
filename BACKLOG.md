@@ -10,7 +10,7 @@ Parked features — not in the current release.
 
 1. **Choose vault folder** — picker / welcome CTA to set the notes root (persisted; used by Go to File, reopen, `:daily`). Still: Open Folder… (`⇧⌘O`).
 2. **Daily notes template** — **done for fixed vault-root `daily-notes-temp.md`:** `:daily` / `:today` prompts Create starter / Choose file… when missing; Settings → Daily notes has the same actions.
-3. **Diaries folder** — **done:** Settings → Daily notes Choose folder… / Create folder / Use diaries; `:daily` auto-creates the configured folder when missing (default `diaries/`).
+3. **Diaries folder** — **done:** Settings → Daily notes Choose folder… / Create folder / Use diaries; folder must be one level under the vault (not nested inside an existing diaries tree); `:daily` auto-creates the configured folder when missing (default `diaries/`).
 4. Clear errors when vault or template is missing (status flashes + setup alert).
 
 **Still needed for polished first-run:** dedicated vault onboarding when no folder is open.

@@ -38,7 +38,7 @@ public enum RoobytesTips {
         Tip(
             id: "daily-note",
             title: "Daily note",
-            body: ":daily (or :today) opens YYYY-MM-DD.md in the vault notes folder (default diaries/). Template is vault-root daily-notes-temp.md. Settings → Daily notes: template + Choose folder… / Create folder."
+            body: ":daily (or :today) opens YYYY-MM-DD.md in a folder one level under the vault (default diaries/). Template is vault-root daily-notes-temp.md. Settings → Daily notes: template + Choose folder… / Create folder."
         ),
         Tip(
             id: "chord-hints",

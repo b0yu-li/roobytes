@@ -2,7 +2,8 @@ import Foundation
 
 /// Daily note paths and create-from-template for the vault’s diaries folder.
 /// Template path is vault-root `daily-notes-temp.md` (Create starter / Choose file via setup UI).
-/// Diaries folder defaults to `diaries/` and is configurable via Settings (vault-relative path).
+/// Diaries folder defaults to `diaries/` and is configurable via Settings
+/// (single vault-relative folder name — at most one level below the vault).
 public enum DailyNotes {
     public static let templateFileName = "daily-notes-temp.md"
     public static let diariesFolderName = "diaries"
@@ -46,7 +47,7 @@ public enum DailyNotes {
         vault.appendingPathComponent(templateFileName, isDirectory: false)
     }
 
-    /// Resolved diaries folder under `vault`.
+    /// Resolved diaries folder under `vault` (one level: `vault/<name>/`).
     /// Pass `relativePath` from Settings (`diariesRelativePath`); `nil` → `"diaries"`.
     public static func diariesFolder(
         vault: URL,
@@ -56,7 +57,10 @@ public enum DailyNotes {
         return vault.appendingPathComponent(clean, isDirectory: true)
     }
 
-    /// Normalize a vault-relative diaries path; rejects absolute / parent escapes.
+    /// Normalize a vault-relative diaries folder name.
+    /// Accepts a single path component only (`diaries`, `journal`) — rejects nested
+    /// paths (`notes/daily`), absolute paths, and parent escapes so daily notes stay
+    /// at most one level below the vault (never inside an existing diaries tree).
     public static func sanitizeDiariesRelativePath(_ raw: String) -> String? {
         var path = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         while path.hasPrefix("./") { path = String(path.dropFirst(2)) }
@@ -64,10 +68,10 @@ public enum DailyNotes {
         while path.hasSuffix("/") { path = String(path.dropLast()) }
         guard !path.isEmpty else { return nil }
         let parts = path.split(separator: "/").map(String.init)
-        guard !parts.isEmpty, !parts.contains(where: { $0 == ".." || $0 == "." || $0.isEmpty }) else {
-            return nil
-        }
-        return parts.joined(separator: "/")
+        guard parts.count == 1 else { return nil }
+        let name = parts[0]
+        guard name != "..", name != ".", !name.isEmpty else { return nil }
+        return name
     }
 
     /// Create the diaries folder if missing (Settings “Create folder” / `:daily`).

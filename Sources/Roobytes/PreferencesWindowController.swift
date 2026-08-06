@@ -190,7 +190,7 @@ final class PreferencesWindowController: NSWindowController {
         dailyStack.spacing = 8
         column.addArrangedSubview(section(
             title: "Daily notes",
-            caption: "`:daily` / `:today` · template + notes folder under vault",
+            caption: "`:daily` / `:today` · template + one folder under vault",
             body: dailyStack
         ))
 
@@ -391,11 +391,10 @@ final class PreferencesWindowController: NSWindowController {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
-        panel.directoryURL = DailyNotes.diariesFolder(
-            vault: vault,
-            relativePath: RoobytesSettings.shared.diariesRelativePath
-        )
-        panel.message = "Choose the diaries folder inside this vault"
+        // Start at the vault root so “Create” makes a sibling of existing folders,
+        // not a nest inside an already-selected diaries folder.
+        panel.directoryURL = vault
+        panel.message = "Choose a folder directly under this vault (one level only)"
         panel.prompt = "Select"
         guard panel.runModal() == .OK, let url = panel.url?.standardizedFileURL else { return }
         let vaultPath = vault.standardizedFileURL.path
@@ -413,12 +412,21 @@ final class PreferencesWindowController: NSWindowController {
         if rel.isEmpty {
             let alert = NSAlert()
             alert.messageText = "Pick a subfolder"
-            alert.informativeText = "Daily notes need a folder inside the vault (default: diaries)."
+            alert.informativeText = "Daily notes need a folder directly under the vault (default: diaries)."
             alert.alertStyle = .warning
             alert.runModal()
             return
         }
-        RoobytesSettings.shared.diariesRelativePath = rel
+        guard let clean = DailyNotes.sanitizeDiariesRelativePath(rel) else {
+            let alert = NSAlert()
+            alert.messageText = "Pick one level under the vault"
+            alert.informativeText =
+                "Daily notes go in a direct subfolder of \(vault.lastPathComponent) (e.g. diaries), not inside an existing diaries folder."
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+        RoobytesSettings.shared.diariesRelativePath = clean
         refreshDailyTemplateStatus()
     }
 
