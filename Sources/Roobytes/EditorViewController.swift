@@ -43,7 +43,16 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
     var wordIndexDirty = true
     var restyleWorkItem: DispatchWorkItem?
     /// Live Preview: caret line rendered as raw markdown.
-    var activeSourceLine: Int?
+    var activeSourceLine: Int? {
+        didSet {
+            guard vimMode == .insert, let line = activeSourceLine, oldValue != line else { return }
+            insertActiveLineHadContent =
+                markdownLines.indices.contains(line) && !markdownLines[line].isEmpty
+        }
+    }
+    /// True once the current Insert active line held non-empty text this session.
+    /// Esc uses this to drop a trailing line the user cleared (not an intentional blank).
+    var insertActiveLineHadContent = false
     var isSnappingCaret = false
     var isUpdatingBlockCaret = false
     /// Pending first key of a two-key Normal command (e.g. `z` waiting for `zz`, `d` for `dd`).

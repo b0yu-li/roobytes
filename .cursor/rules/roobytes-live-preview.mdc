@@ -49,6 +49,8 @@ Never fall back to `currentParagraphText()` for the active line when the caret p
 
 When Insert clears every character on the active line, sync must write `""` into that markdown line (`MarkdownBridge.insertSyncViewLine`). Skipping left stale source that Esc restyles back (deleted glyphs reappear). Only skip when the caret tags a *different* source line.
 
+On Esc, if that emptied line is **trailing** and held content during the Insert session (`shouldDiscardEmptiedInsertLine`), **delete the line** — do not leave a blank the user never meant to keep (delete `a` → Esc should not grow a new empty line 9). Intentional blanks the user never typed on stay.
+
 ## Folds
 
 - Nested-list folds hide children in the **view only**; markdown source is unchanged

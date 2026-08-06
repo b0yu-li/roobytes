@@ -573,6 +573,9 @@ extension EditorViewController {
         if previous != viewLine {
             RoobytesDebugLog.event("syncLine[\(lineIdx)] \(previous.prefix(40).debugDescription) → \(viewLine.prefix(40).debugDescription)")
         }
+        if lineIdx == activeSourceLine, !viewLine.isEmpty {
+            insertActiveLineHadContent = true
+        }
 
         mdLines[lineIdx] = viewLine
 
@@ -665,7 +668,7 @@ extension EditorViewController {
     }
 
     /// Structural markdown edits (join/split line count) must not use incremental restyle.
-    private func invalidateIncrementalRestyle() {
+    func invalidateIncrementalRestyle() {
         lastRestyleMarkdownRevision = -1
         lastRestyleMarkdownLineCount = -1
     }

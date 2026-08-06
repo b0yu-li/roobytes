@@ -770,6 +770,7 @@ extension EditorViewController {
 
         if newMode == .normal {
             let previous = activeSourceLine
+            let hadContentDuringInsert = insertActiveLineHadContent
             if let active = previous {
                 let lineBefore = markdownLines.indices.contains(active) ? markdownLines[active] : "<OOB>"
                 syncLineAtIndex(active)
@@ -780,19 +781,45 @@ extension EditorViewController {
             }
             // Nested open task typed in Insert (or indent under a done parent) should
             // reopen ancestors — same rule as Enter / `o` creating `+ [ ]`.
-            let syncedLine = activeSourceLine ?? previous
-            if let synced = syncedLine, markdownLines.indices.contains(synced) {
-                var lines = markdownLines
+            var homeLine = activeSourceLine ?? previous
+            var lines = markdownLines
+            if let synced = homeLine, lines.indices.contains(synced) {
                 if MarkdownBridge.taskState(in: lines[synced]) != nil {
                     let modified = MarkdownBridge.reconcileTaskTree(around: synced, in: &lines)
                     if !modified.isEmpty {
                         markdownSource = lines.joined(separator: "\n")
+                        lines = markdownLines
                     }
                 }
             }
+            // Cleared trailing Insert line (`a` → delete → Esc): drop it, don't leave a blank.
+            var discardedTrailing = false
+            if let synced = homeLine,
+               MarkdownBridge.shouldDiscardEmptiedInsertLine(
+                   lineIndex: synced,
+                   lines: lines,
+                   lineHadContentDuringInsert: hadContentDuringInsert
+               )
+            {
+                RoobytesDebugLog.event("Esc discard emptied trailing line \(synced)")
+                lines.remove(at: synced)
+                foldedParentLines = MarkdownBridge.foldsAfterDeleting(
+                    synced..<(synced + 1),
+                    from: foldedParentLines
+                )
+                markdownSource = lines.joined(separator: "\n")
+                invalidateIncrementalRestyle()
+                homeLine = max(0, synced - 1)
+                lines = markdownLines
+                discardedTrailing = true
+            }
+            insertActiveLineHadContent = false
             // Backspace-join may move `activeSourceLine` to the previous line during sync.
             var caret = currentMarkdownCaret()
-            let lines = markdownLines
+            if discardedTrailing, let home = homeLine, lines.indices.contains(home) {
+                let col = MarkdownBridge.contentStartColumn(in: lines[home])
+                caret = MarkdownBridge.MarkdownCaret(line: home, column: col)
+            }
             if caret.line >= 0, caret.line < lines.count {
                 caret.column = MarkdownBridge.markdownColumnAfterTaskSlugToggle(
                     markdownLine: lines[caret.line],

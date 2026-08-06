@@ -8,6 +8,10 @@ All notable changes to Roobytes are documented in this file.
 - Rename legacy NativeMD attribute keys to Roobytes.*
 - Document onboarding backlog: vault picker + daily template setup
 
+## 0.3.6
+
+- Drop emptied trailing Insert line on Esc (no leftover blank)
+
 ## 0.3.5
 
 - Persist cleared Insert line so Esc does not resurrect deleted text

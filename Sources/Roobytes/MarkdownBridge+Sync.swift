@@ -233,6 +233,24 @@ extension MarkdownBridge {
         return ""
     }
 
+    /// Whether Esc should delete an Insert line that was emptied (not leave a blank).
+    ///
+    /// Only trailing empties that held content during the Insert session — keeps intentional
+    /// blank lines the user never typed on, and never removes a middle-of-document blank.
+    public static func shouldDiscardEmptiedInsertLine(
+        lineIndex: Int,
+        lines: [String],
+        lineHadContentDuringInsert: Bool
+    ) -> Bool {
+        guard lineHadContentDuringInsert else { return false }
+        guard lines.indices.contains(lineIndex) else { return false }
+        guard lines[lineIndex].isEmpty else { return false }
+        if lineIndex == lines.count - 1 { return true }
+        // POSIX split of a final newline: `[…, "", ""]` — discard the emptied content slot.
+        if lineIndex == lines.count - 2, lines[lines.count - 1].isEmpty { return true }
+        return false
+    }
+
     /// True when a view line still has Live Preview widgets (not editable source).
     public static func looksLikeDecoratedPreview(_ line: String) -> Bool {
         if line.contains("\u{FFFC}") { return true }

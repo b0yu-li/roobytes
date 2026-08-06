@@ -637,6 +637,54 @@ do {
 }
 
 do {
+    // Esc after clearing trailing Insert content must drop the line (no leftover blank).
+    let afterClear = ["# Focus", "", "# Notes", ""]
+    T.check(
+        "discard emptied trailing a",
+        MarkdownBridge.shouldDiscardEmptiedInsertLine(
+            lineIndex: 3,
+            lines: afterClear,
+            lineHadContentDuringInsert: true
+        )
+    )
+    // Intentional blank the user never typed on — keep.
+    T.check(
+        "keep untouched trailing blank",
+        !MarkdownBridge.shouldDiscardEmptiedInsertLine(
+            lineIndex: 1,
+            lines: ["# Focus", "", "# Notes"],
+            lineHadContentDuringInsert: false
+        )
+    )
+    // Middle blank stays even if it had content this session.
+    T.check(
+        "keep emptied middle blank",
+        !MarkdownBridge.shouldDiscardEmptiedInsertLine(
+            lineIndex: 1,
+            lines: ["# Focus", "", "# Notes"],
+            lineHadContentDuringInsert: true
+        )
+    )
+    // POSIX trailing empty after emptied content slot.
+    T.check(
+        "discard emptied slot before POSIX empty",
+        MarkdownBridge.shouldDiscardEmptiedInsertLine(
+            lineIndex: 2,
+            lines: ["# Notes", "task", "", ""],
+            lineHadContentDuringInsert: true
+        )
+    )
+    T.check(
+        "non-empty line never discarded",
+        !MarkdownBridge.shouldDiscardEmptiedInsertLine(
+            lineIndex: 2,
+            lines: ["# Notes", "", "keep"],
+            lineHadContentDuringInsert: true
+        )
+    )
+}
+
+do {
     // End-to-end-ish: active last line "a", then a view with that paragraph emptied.
     let md = "# Focus\n\n# Notes\n\na"
     let lines = md.components(separatedBy: "\n")
